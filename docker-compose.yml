@@ -1,0 +1,50 @@
+version: "3.9"
+
+# Root-level compose that brings up MongoDB + Backend API + (optional) Mongo Express.
+# The Next.js frontend is intended to be run separately with `npm run dev` inside ./frontend
+# (Next.js dev server benefits from local file-watching), pointed at http://localhost:5000.
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: ll-portal-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  mongo-express:
+    image: mongo-express:1.0.2
+    container_name: ll-portal-mongo-express
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:27017
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin
+    depends_on:
+      - mongo
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ll-portal-api
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/ll_exam_portal
+      - NODE_ENV=production
+      - CLIENT_URL=http://localhost:3000
+    volumes:
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:
