@@ -28,7 +28,7 @@ export const registerStaffSchema = z.object({
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
-  role: z.enum(["admin", "staff", "client"]).optional(),
+  role: z.enum(["admin", "staff", "team_leader", "client"]).optional(),
 });
 
 export const requestOtpSchema = z.object({

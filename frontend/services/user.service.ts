@@ -104,6 +104,101 @@ export async function updateStaffStatus(
   return toStaff(data);
 }
 
+/* ------------------ Team leader management (admin) ------------------ */
+
+export interface TeamLeader {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: "team_leader";
+  department?: string;
+  staffStatus?: string;
+  teamMemberCount: number;
+  activeTasks: number;
+  createdAt: string;
+  avatarUrl?: string;
+}
+
+function toTeamLeader(u: RawUser): TeamLeader {
+  return {
+    id: u.businessId,
+    name: u.name,
+    email: u.email,
+    phone: u.phone,
+    role: "team_leader",
+    department: u.department ?? "Licensing",
+    staffStatus: u.staffStatus ?? "Active",
+    teamMemberCount: (u as any).teamMemberCount ?? 0,
+    activeTasks: (u as any).activeTasks ?? 0,
+    createdAt: u.createdAt,
+    avatarUrl: u.avatarUrl,
+  };
+}
+
+export async function listTeamLeaders(params: {
+  page?: number;
+  limit?: number;
+  search?: string;
+} = {}): Promise<PagedResponse<TeamLeader>> {
+  const { data, meta } = await api.get<RawUser[]>("/users/team-leaders", { query: params });
+  return {
+    items: data.map(toTeamLeader),
+    total: Number(meta?.total ?? data.length),
+    page: Number(meta?.page ?? 1),
+    limit: Number(meta?.limit ?? data.length),
+  };
+}
+
+export async function createTeamLeader(payload: {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  department?: string;
+}): Promise<TeamLeader> {
+  const { data } = await api.post<RawUser>("/users/team-leaders", payload);
+  return toTeamLeader(data);
+}
+
+export async function updateTeamLeader(
+  businessId: string,
+  payload: { name?: string; email?: string; phone?: string; department?: string },
+): Promise<TeamLeader> {
+  const { data } = await api.patch<RawUser>(`/users/team-leaders/${businessId}`, payload);
+  return toTeamLeader(data);
+}
+
+export async function toggleTeamLeaderActive(businessId: string, active: boolean): Promise<TeamLeader> {
+  const { data } = await api.patch<RawUser>(`/users/team-leaders/${businessId}/active`, { active });
+  return toTeamLeader(data);
+}
+
+export async function deleteTeamLeader(businessId: string): Promise<any> {
+  const { data } = await api.delete(`/users/team-leaders/${businessId}`);
+  return data;
+}
+
+export async function assignStaffToTeamLeader(
+  teamLeaderBusinessId: string,
+  staffBusinessId: string,
+): Promise<any> {
+  const { data } = await api.patch(`/users/team-leaders/${teamLeaderBusinessId}/assign-staff`, {
+    staffId: staffBusinessId,
+  });
+  return data;
+}
+
+export async function removeStaffFromTeamLeader(
+  teamLeaderBusinessId: string,
+  staffBusinessId: string,
+): Promise<any> {
+  const { data } = await api.patch(`/users/team-leaders/${teamLeaderBusinessId}/remove-staff`, {
+    staffId: staffBusinessId,
+  });
+  return data;
+}
+
 /* ------------------ Client management (admin) ------------------ */
 
 export async function listClients(params: {

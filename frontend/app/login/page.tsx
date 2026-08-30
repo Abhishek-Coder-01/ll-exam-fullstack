@@ -50,6 +50,14 @@ const roleConfig = {
     accentLight: "bg-blue-100",
     placeholder: "staff@llportal.gov.in",
   },
+  team_leader: {
+    icon: User,
+    color: "from-amber-500 to-orange-600",
+    bgLight: "bg-amber-50",
+    textColor: "text-amber-700",
+    accentLight: "bg-amber-100",
+    placeholder: "teamleader@llportal.gov.in",
+  },
   client: {
     icon: Users,
     color: "from-emerald-600 to-teal-700",
@@ -259,8 +267,8 @@ export default function LoginPage() {
             value={activeTab}
             onValueChange={(value) => setActiveTab(value as Role)}
           >
-            <TabsList className="grid w-full grid-cols-3 mb-6 bg-muted/50 p-1 rounded-xl">
-              {(["admin", "staff", "client"] as Role[]).map((tab) => {
+            <TabsList className="grid w-full grid-cols-4 mb-6 bg-muted/50 p-1 rounded-xl">
+              {(["admin", "staff", "team_leader", "client"] as Role[]).map((tab) => {
                 const config = roleConfig[tab];
                 const Icon = config.icon;
                 return (
@@ -271,7 +279,7 @@ export default function LoginPage() {
                   >
                     <Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">
-                      {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {tab === "team_leader" ? "Team Lead" : tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </span>
                   </TabsTrigger>
                 );
@@ -283,6 +291,9 @@ export default function LoginPage() {
             </TabsContent>
             <TabsContent value="staff" className="mt-0">
               <RoleLoginForm role="staff" />
+            </TabsContent>
+            <TabsContent value="team_leader" className="mt-0">
+              <RoleLoginForm role="team_leader" />
             </TabsContent>
             <TabsContent value="client" className="mt-0">
               <RoleLoginForm role="client" />

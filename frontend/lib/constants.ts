@@ -15,7 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-export type Role = "admin" | "staff" | "client";
+export type Role = "admin" | "staff" | "team_leader" | "client";
 
 export interface NavItem {
   label: string;
@@ -29,6 +29,7 @@ export const APP_NAME = "LL Exam Portal";
 
 export const ADMIN_NAV: NavItem[] = [
   { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
+  { label: "Team Leaders", href: "/admin/team-leaders", icon: UserCog },
   { label: "Staff Management", href: "/admin/staff", icon: UserCog },
   { label: "Client Management", href: "/admin/clients", icon: Users },
   { label: "Applications", href: "/admin/applications", icon: FileText },
@@ -58,9 +59,18 @@ export const CLIENT_NAV: NavItem[] = [
   { label: "Profile", href: "/client/profile", icon: User },
 ];
 
+export const TEAM_LEADER_NAV: NavItem[] = [
+  { label: "Dashboard", href: "/team-leader/dashboard", icon: LayoutDashboard },
+  { label: "Team Staff", href: "/team-leader/staff", icon: Users },
+  { label: "Applications", href: "/team-leader/applications", icon: FileText },
+  { label: "Notifications", href: "/team-leader/notifications", icon: Bell },
+  { label: "Profile", href: "/team-leader/profile", icon: User },
+];
+
 export const NAV_BY_ROLE: Record<Role, NavItem[]> = {
   admin: ADMIN_NAV,
   staff: STAFF_NAV,
+  team_leader: TEAM_LEADER_NAV,
   client: CLIENT_NAV,
 };
 

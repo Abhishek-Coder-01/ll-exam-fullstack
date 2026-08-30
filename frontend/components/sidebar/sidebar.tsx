@@ -18,6 +18,7 @@ function RoleTag({ role }: { role: Role }) {
   const config = {
     admin: { label: "Admin Portal", color: "text-blue-200" },
     staff: { label: "Staff Portal", color: "text-blue-200" },
+    team_leader: { label: "Team Leader Portal", color: "text-blue-200" },
     client: { label: "Client Portal", color: "text-blue-200" },
   };
   const { label, color } = config[role];

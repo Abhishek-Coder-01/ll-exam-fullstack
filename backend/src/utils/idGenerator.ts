@@ -9,6 +9,9 @@ const digits = customAlphabet("0123456789", 5);
 export function generateStaffId(): string {
   return `STF-${digits(3)}`;
 }
+export function generateTeamLeaderId(): string {
+  return `TL-${digits(3)}`;
+}
 export function generateClientId(): string {
   return `CLT-${digits(4)}`;
 }

@@ -3,6 +3,7 @@ import {
   APPLICATION_STATUSES,
   DOCUMENT_STATUSES,
   PAYMENT_STATUSES,
+  STAFF_AVAILABILITY_STATUSES,
   STAFF_STATUSES,
 } from "../types/domain";
 
@@ -33,6 +34,10 @@ export const updateDocumentStatusSchema = z.object({
 
 export const updateStaffStatusSchema = z.object({
   staffStatus: z.enum(STAFF_STATUSES as [string, ...string[]]),
+});
+
+export const updateStaffAvailabilitySchema = z.object({
+  availabilityStatus: z.enum(STAFF_AVAILABILITY_STATUSES as [string, ...string[]]),
 });
 
 export const createPaymentSchema = z.object({

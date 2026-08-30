@@ -8,6 +8,7 @@ import { generateApplicationId, generatePaymentId, generateInvoiceNo } from "../
 import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
 import type { ApplicationStatus } from "../types/domain";
+import { assignApplicationToAvailableStaff } from "../services/taskAssignment.service";
 
 const DEFAULT_FEES: Record<string, number> = {
   "Learner's License": 350,
@@ -40,6 +41,20 @@ export async function createApplication(req: Request, res: Response): Promise<vo
       ? (await UserModel.findOne({ businessId: client.assignedStaffId }))?.name
       : undefined,
   });
+
+  const assignment = await assignApplicationToAvailableStaff({
+    applicationId: app.businessId,
+    assignmentType: "AUTO",
+    assignedBy: "system",
+    assignedByName: "System",
+  });
+
+  if (assignment.assigned && assignment.application) {
+    app.status = assignment.application.status;
+    app.assignedStaffId = assignment.application.assignedStaffId;
+    app.assignedStaffName = assignment.application.assignedStaffName;
+    app.updatedOn = new Date();
+  }
 
   // Auto-create a Pending payment row
   await PaymentModel.create({
@@ -96,6 +111,10 @@ export async function listApplications(req: Request, res: Response): Promise<voi
 
   if (req.user.role === "client") filter.applicantId = req.user.userId;
   if (req.user.role === "staff") filter.assignedStaffId = req.user.userId;
+  if (req.user.role === "team_leader") {
+    const teamMemberIds = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId }).distinct("businessId");
+    filter.assignedStaffId = { $in: teamMemberIds };
+  }
 
   if (status) filter.status = status;
   if (search) {
@@ -129,6 +148,12 @@ export async function getApplication(req: Request, res: Response): Promise<void>
   if (req.user.role === "staff" && app.assignedStaffId !== req.user.userId) {
     throw ApiError.forbidden("This application is not assigned to you");
   }
+  if (req.user.role === "team_leader") {
+    const teamMemberIds = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId }).distinct("businessId");
+    if (!teamMemberIds.includes(app.assignedStaffId ?? "")) {
+      throw ApiError.forbidden("This application is not assigned to your team");
+    }
+  }
   ok(res, app.toObject());
 }
 
@@ -156,6 +181,13 @@ export async function updateApplication(req: Request, res: Response): Promise<vo
     }
     if (patch.type) app.type = patch.type;
   } else {
+    if (req.user.role === "team_leader") {
+      const teamMemberIds = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId }).distinct("businessId");
+      if (patch.assignedStaffId && !teamMemberIds.includes(patch.assignedStaffId)) {
+        throw ApiError.forbidden("You can only reassign tasks to your own team members");
+      }
+    }
+
     if (patch.status) app.status = patch.status;
     if (patch.assignedStaffId !== undefined) {
       const staff = await UserModel.findOne({ businessId: patch.assignedStaffId, role: "staff" });

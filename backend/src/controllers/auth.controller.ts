@@ -12,7 +12,7 @@ import {
 import { requestOtp, verifyOtpCode } from "../services/otp.service";
 import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
-import { generateClientId, generateStaffId } from "../utils/idGenerator";
+import { generateClientId, generateStaffId, generateTeamLeaderId } from "../utils/idGenerator";
 import { env } from "../config/env";
 import type { Role } from "../types/domain";
 
@@ -185,7 +185,11 @@ export async function sendOtp(req: Request, res: Response): Promise<void> {
   if (!user) throw ApiError.notFound("No account found for this phone number");
 
   if (purpose === "login") {
-    if (user.role === "staff" && user.staffStatus !== "Approved" && user.staffStatus !== "Active") {
+    if (
+      (user.role === "staff" || user.role === "team_leader") &&
+      user.staffStatus !== "Approved" &&
+      user.staffStatus !== "Active"
+    ) {
       throw ApiError.forbidden(
         `Your staff account status is "${user.staffStatus ?? "Pending"}". Please wait for admin approval.`,
       );
@@ -274,7 +278,11 @@ export async function verifyOtp(req: Request, res: Response): Promise<void> {
 
   if (purpose === "login") {
     // Extra guard — staff must be approved
-    if (user.role === "staff" && user.staffStatus !== "Approved" && user.staffStatus !== "Active") {
+    if (
+      (user.role === "staff" || user.role === "team_leader") &&
+      user.staffStatus !== "Approved" &&
+      user.staffStatus !== "Active"
+    ) {
       throw ApiError.forbidden(
         `Your staff account status is "${user.staffStatus ?? "Pending"}". Please wait for admin approval.`,
       );
@@ -328,7 +336,11 @@ export async function login(req: Request, res: Response): Promise<void> {
   }
 
   // Staff must be approved before login is permitted
-  if (user.role === "staff" && user.staffStatus !== "Approved" && user.staffStatus !== "Active") {
+  if (
+    (user.role === "staff" || user.role === "team_leader") &&
+    user.staffStatus !== "Approved" &&
+    user.staffStatus !== "Active"
+  ) {
     throw ApiError.forbidden(
       `Your staff account is "${user.staffStatus ?? "Pending"}". Please wait for admin approval.`,
     );

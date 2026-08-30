@@ -105,7 +105,9 @@ export function AuthProvider({
           ? "/admin/dashboard"
           : user.role === "staff"
             ? "/staff/dashboard"
-            : "/client/dashboard";
+            : user.role === "team_leader"
+              ? "/team-leader/dashboard"
+              : "/client/dashboard";
       router.replace(target);
     }
   }, [user, loading, requireRole, router]);

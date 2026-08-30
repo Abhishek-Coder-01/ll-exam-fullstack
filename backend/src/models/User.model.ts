@@ -1,10 +1,15 @@
 import { Schema, model, type Document, type Model } from "mongoose";
 import bcrypt from "bcryptjs";
 import { env } from "../config/env";
-import { ROLES, type Role, type StaffStatus } from "../types/domain";
+import {
+  ROLES,
+  type Role,
+  type StaffAvailabilityStatus,
+  type StaffStatus,
+} from "../types/domain";
 
 export interface IUser extends Document {
-  businessId: string; // e.g. STF-101, CLT-2001, ADM-001
+  businessId: string; // e.g. STF-101, TL-200, CLT-2001, ADM-001
   name: string;
   email: string;
   phone: string;
@@ -19,6 +24,8 @@ export interface IUser extends Document {
   // Staff-specific
   staffStatus?: StaffStatus; // Pending / Approved / Rejected / Active / Inactive
   department?: string;
+  availabilityStatus?: StaffAvailabilityStatus;
+  teamLeaderId?: string;
 
   // Client-specific
   licenseType?: string;
@@ -55,12 +62,18 @@ const userSchema = new Schema<IUser>(
     isPhoneVerified: { type: Boolean, default: false },
     isEmailVerified: { type: Boolean, default: false },
 
-    // Staff
+    // Staff and Team Leaders
     staffStatus: {
       type: String,
       enum: ["Pending", "Approved", "Rejected", "Active", "Inactive"],
     },
     department: { type: String },
+    availabilityStatus: {
+      type: String,
+      enum: ["Available", "Busy", "Break", "Offline", "Inactive", "Suspended"],
+      default: "Available",
+    },
+    teamLeaderId: { type: String, index: true },
 
     // Client
     licenseType: { type: String },

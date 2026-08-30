@@ -1,15 +1,26 @@
-export type Role = "admin" | "staff" | "client";
+export type Role = "admin" | "staff" | "team_leader" | "client";
 
 export type ApplicationStatus =
   | "Submitted"
   | "Under Review"
   | "Assigned Staff"
+  | "Assigned"
+  | "In Progress"
   | "Verified"
   | "Approved"
   | "Completed"
-  | "Rejected";
+  | "Rejected"
+  | "Waiting for Staff"
+  | "Cancelled";
 
 export type StaffStatus = "Pending" | "Approved" | "Rejected" | "Active" | "Inactive";
+export type StaffAvailabilityStatus =
+  | "Available"
+  | "Busy"
+  | "Break"
+  | "Offline"
+  | "Inactive"
+  | "Suspended";
 
 export type PaymentStatus = "Pending" | "Verified" | "Failed" | "Completed";
 

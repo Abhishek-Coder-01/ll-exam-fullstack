@@ -109,7 +109,9 @@ export default function VerifyOtpPage() {
           ? "/admin/dashboard"
           : role === "staff"
             ? "/staff/dashboard"
-            : "/client/dashboard";
+            : role === "team_leader"
+              ? "/team-leader/dashboard"
+              : "/client/dashboard";
       setTimeout(() => {
         router.push(target);
       }, 1500);

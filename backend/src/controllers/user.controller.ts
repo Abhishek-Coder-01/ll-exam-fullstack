@@ -6,6 +6,7 @@ import { ApplicationModel } from "../models/Application.model";
 import { PaymentModel } from "../models/Payment.model";
 import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
+import { generateTeamLeaderId } from "../utils/idGenerator";
 
 /* ----------------- Profile (self) ----------------- */
 
@@ -27,6 +28,160 @@ export async function updateProfile(req: Request, res: Response): Promise<void> 
 
   await user.save();
   ok(res, user.toPublicJSON(), "Profile updated");
+}
+
+/* ----------------- Team leader management (admin) ----------------- */
+
+export async function listTeamLeaders(req: Request, res: Response): Promise<void> {
+  const { page = 1, limit = 20, search } = req.query as Record<string, string | undefined>;
+  const filter: Record<string, unknown> = { role: "team_leader" };
+  if (search) {
+    filter.$or = [
+      { name: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } },
+      { businessId: { $regex: search, $options: "i" } },
+    ];
+  }
+
+  const p = Number(page);
+  const l = Number(limit);
+  const [items, total] = await Promise.all([
+    UserModel.find(filter).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l),
+    UserModel.countDocuments(filter),
+  ]);
+
+  const enriched = await Promise.all(
+    items.map(async (user) => {
+      const teamMembers = await UserModel.find({ role: "staff", teamLeaderId: user.businessId });
+      const activeTasks = await ApplicationModel.countDocuments({
+        assignedStaffId: { $in: teamMembers.map((member) => member.businessId) },
+        status: { $in: ["Assigned", "In Progress"] },
+      });
+      return { ...user.toPublicJSON(), teamMemberCount: teamMembers.length, activeTasks };
+    }),
+  );
+
+  ok(res, enriched, "Team leaders list", 200, { total, page: p, limit: l });
+}
+
+export async function createTeamLeader(req: Request, res: Response): Promise<void> {
+  const { name, email, phone, password, department } = req.body as {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    department?: string;
+  };
+
+  const existing = await UserModel.findOne({ $or: [{ email }, { phone }] });
+  if (existing) {
+    if (existing.phone === phone) throw ApiError.conflict("Mobile number already registered");
+    throw ApiError.conflict("Email already registered");
+  }
+
+  const teamLeader = await UserModel.create({
+    businessId: generateTeamLeaderId(),
+    name,
+    email,
+    phone,
+    password,
+    role: "team_leader",
+    department: department ?? "Licensing",
+    staffStatus: "Active",
+    availabilityStatus: "Available",
+    isPhoneVerified: true,
+    isEmailVerified: false,
+  });
+
+  await recordActivity({
+    actorId: req.user?.userId ?? "system",
+    actorName: req.user?.email ?? "system",
+    action: "created team leader",
+    target: teamLeader.businessId,
+  });
+
+  ok(res, teamLeader.toPublicJSON(), "Team leader created successfully");
+}
+
+export async function updateTeamLeader(req: Request, res: Response): Promise<void> {
+  const { businessId } = req.params;
+  const { name, email, phone, department } = req.body as {
+    name?: string;
+    email?: string;
+    phone?: string;
+    department?: string;
+  };
+
+  const teamLeader = await UserModel.findOne({ businessId, role: "team_leader" });
+  if (!teamLeader) throw ApiError.notFound("Team leader not found");
+
+  if (name) teamLeader.name = name;
+  if (email) teamLeader.email = email;
+  if (phone) teamLeader.phone = phone;
+  if (department) teamLeader.department = department;
+
+  await teamLeader.save();
+  ok(res, teamLeader.toPublicJSON(), "Team leader updated");
+}
+
+export async function toggleTeamLeaderActive(req: Request, res: Response): Promise<void> {
+  const { businessId } = req.params;
+  const { active } = req.body as { active?: boolean };
+  const teamLeader = await UserModel.findOne({ businessId, role: "team_leader" });
+  if (!teamLeader) throw ApiError.notFound("Team leader not found");
+
+  teamLeader.staffStatus = active === false ? "Inactive" : "Active";
+  teamLeader.availabilityStatus = active === false ? "Offline" : "Available";
+  await teamLeader.save();
+
+  ok(res, teamLeader.toPublicJSON(), "Team leader activity updated");
+}
+
+export async function assignStaffToTeamLeader(req: Request, res: Response): Promise<void> {
+  const { businessId } = req.params;
+  const { staffId } = req.body as { staffId: string };
+
+  const teamLeader = await UserModel.findOne({ businessId, role: "team_leader" });
+  if (!teamLeader) throw ApiError.notFound("Team leader not found");
+
+  const staff = await UserModel.findOne({ businessId: staffId, role: "staff" });
+  if (!staff) throw ApiError.notFound("Staff not found");
+
+  staff.teamLeaderId = teamLeader.businessId;
+  await staff.save();
+
+  ok(res, staff.toPublicJSON(), "Staff assigned to team leader");
+}
+
+export async function removeStaffFromTeamLeader(req: Request, res: Response): Promise<void> {
+  const { businessId } = req.params;
+  const { staffId } = req.body as { staffId: string };
+
+  const teamLeader = await UserModel.findOne({ businessId, role: "team_leader" });
+  if (!teamLeader) throw ApiError.notFound("Team leader not found");
+
+  const staff = await UserModel.findOne({ businessId: staffId, role: "staff", teamLeaderId: teamLeader.businessId });
+  if (!staff) throw ApiError.notFound("Staff not assigned to this team leader");
+
+  staff.teamLeaderId = undefined;
+  await staff.save();
+
+  ok(res, staff.toPublicJSON(), "Staff removed from team leader");
+}
+
+export async function deleteTeamLeader(req: Request, res: Response): Promise<void> {
+  const { businessId } = req.params;
+
+  const teamLeader = await UserModel.findOne({ businessId, role: "team_leader" });
+  if (!teamLeader) throw ApiError.notFound("Team leader not found");
+
+  // Remove team leader assignment from all assigned staff
+  await UserModel.updateMany({ teamLeaderId: teamLeader.businessId }, { $unset: { teamLeaderId: "" } });
+
+  // Delete the team leader
+  await UserModel.deleteOne({ businessId, role: "team_leader" });
+
+  ok(res, null, "Team leader deleted successfully");
 }
 
 /* ----------------- Staff management (admin) ----------------- */
@@ -167,7 +322,20 @@ export async function assignStaffToClient(req: Request, res: Response): Promise<
 
 export async function listAssignedClients(req: Request, res: Response): Promise<void> {
   if (!req.user) throw ApiError.unauthorized();
-  const clients = await UserModel.find({ role: "client", assignedStaffId: req.user.userId });
+
+  let staffIds: string[] = [];
+  if (req.user.role === "staff") {
+    staffIds = [req.user.userId];
+  } else if (req.user.role === "team_leader") {
+    const teamMembers = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId }).lean();
+    staffIds = teamMembers.map((member) => member.businessId);
+  }
+
+  const clients = await UserModel.find({
+    role: "client",
+    assignedStaffId: { $in: staffIds.length ? staffIds : ["__none__"] },
+  });
+
   const items = await Promise.all(
     clients.map(async (u) => ({
       ...u.toPublicJSON(),
