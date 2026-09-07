@@ -19,34 +19,12 @@ import {
 import type { Application, DocumentItem, Payment, TimelineStep } from "@/types";
 import { formatDate } from "@/lib/utils";
 
-const TIMELINE_ORDER = [
-  "Submitted",
-  "Under Review",
-  "Assigned Staff",
-  "Verified",
-  "Approved",
-  "Completed",
-];
-
-function timelineFor(app: Application): TimelineStep[] {
-  const currentIdx = TIMELINE_ORDER.indexOf(app.status);
-  return TIMELINE_ORDER.map((label, idx) => ({
-    label,
-    status:
-      idx < currentIdx
-        ? "completed"
-        : idx === currentIdx
-          ? "current"
-          : "upcoming",
-    date: idx === 0 ? formatDate(app.submittedOn) : undefined,
-  }));
-}
-
 export default function ClientDashboardPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [docs, setDocs] = useState<DocumentItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,6 +40,12 @@ export default function ClientDashboardPage() {
         ]);
         if (cancelled) return;
         setApps(a.items);
+        const requestedId = new URLSearchParams(window.location.search).get("applicationId");
+        setSelectedAppId((currentId) =>
+          requestedId && a.items.some((app) => app.id === requestedId)
+            ? requestedId
+            : currentId ?? a.items[0]?.id ?? null,
+        );
         setPayments(p.items);
         setDocs(d);
         setUnreadCount(n.unreadCount);
@@ -96,9 +80,7 @@ export default function ClientDashboardPage() {
     );
   }
 
-  const activeApp = apps.find(
-    (a) => a.status !== "Completed" && a.status !== "Rejected",
-  ) ?? apps[0];
+  const activeApp = apps.find((a) => a.id === selectedAppId) ?? apps[0];
   const pendingPayment = payments.find((p) => p.status === "Pending");
   const pendingDocs = docs.filter((d) => d.status !== "Verified");
 
@@ -143,11 +125,16 @@ export default function ClientDashboardPage() {
           <CardHeader>
             <CardTitle>Application Timeline</CardTitle>
             <CardDescription>
-              {activeApp.id} · {activeApp.type} · <StatusBadge status={activeApp.status} />
+              Application ID: <span className="font-mono font-medium text-foreground">{activeApp.id}</span> · {activeApp.type} · <StatusBadge status={activeApp.status} />
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
-            <ApplicationTimeline steps={timelineFor(activeApp)} />
+            <ApplicationTimeline
+              status={activeApp.status}
+              submittedOn={formatDate(activeApp.submittedOn)}
+              assignedStaff={activeApp.assignedStaff}
+              remarks={activeApp.remarks}
+            />
           </CardContent>
         </Card>
       )}
@@ -169,7 +156,15 @@ export default function ClientDashboardPage() {
             apps.slice(0, 5).map((app) => (
               <div
                 key={app.id}
-                className="flex items-center justify-between gap-2 rounded-lg border border-border p-3"
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedAppId(app.id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") setSelectedAppId(app.id);
+                }}
+                className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border p-3 transition-colors ${
+                  activeApp?.id === app.id ? "border-primary bg-primary/5" : "border-border hover:bg-muted/40"
+                }`}
               >
                 <div>
                   <p className="text-sm font-medium">{app.type}</p>

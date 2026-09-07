@@ -258,6 +258,34 @@ export async function updateStaffStatus(req: Request, res: Response): Promise<vo
   ok(res, staff.toPublicJSON(), "Staff status updated");
 }
 
+export async function deleteStaff(req: Request, res: Response): Promise<void> {
+  const { businessId } = req.params;
+
+  const staff = await UserModel.findOne({ businessId, role: "staff" });
+  if (!staff) throw ApiError.notFound("Staff not found");
+
+  // Unassign staff from all assigned clients
+  await UserModel.updateMany({ assignedStaffId: staff.businessId }, { $unset: { assignedStaffId: "" } });
+
+  // Unassign staff from applications assigned to them
+  await ApplicationModel.updateMany(
+    { assignedStaffId: staff.businessId },
+    { $unset: { assignedStaffId: "", assignedStaffName: "" } },
+  );
+
+  // Delete the staff user record
+  await UserModel.deleteOne({ businessId, role: "staff" });
+
+  await recordActivity({
+    actorId: req.user?.userId ?? "system",
+    actorName: req.user?.email ?? "system",
+    action: "deleted staff member",
+    target: String(businessId),
+  });
+
+  ok(res, null, "Staff member deleted successfully");
+}
+
 /* ----------------- Client management (admin) ----------------- */
 
 export async function listClients(req: Request, res: Response): Promise<void> {

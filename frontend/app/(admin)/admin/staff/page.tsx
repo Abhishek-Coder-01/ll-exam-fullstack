@@ -1,19 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { UserPlus, Check, X, MoreHorizontal, Loader2 } from "lucide-react";
+import { UserPlus, Check, X, MoreHorizontal, Loader2, CheckCircle, Trash2, Power } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { DataTable, type Column } from "@/components/tables/data-table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import {DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
 import { userService, ApiError } from "@/services";
 import type { StaffMember } from "@/types";
 import { getInitials } from "@/lib/utils";
@@ -50,6 +45,19 @@ export default function AdminStaffPage() {
       await load();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to update staff status");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteStaff = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this staff member?")) return;
+    setBusy(id);
+    try {
+      await userService.deleteStaff(id);
+      await load();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to delete staff member");
     } finally {
       setBusy(null);
     }
@@ -107,6 +115,15 @@ export default function AdminStaffPage() {
               >
                 <X className="h-3.5 w-3.5" /> Reject
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1 border-destructive/30 text-destructive hover:bg-destructive/10"
+                onClick={() => deleteStaff(s.id)}
+                disabled={busy === s.id}
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </Button>
             </>
           ) : (
             <DropdownMenu>
@@ -116,19 +133,25 @@ export default function AdminStaffPage() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {s.status !== "Active" && (
+                {s.status === "Active" ? (
+                  <DropdownMenuItem onClick={() => changeStatus(s.id, "Inactive")}>
+                    <Power className="mr-2 h-4 w-4" />
+                    Inactive
+                  </DropdownMenuItem>
+                ) : (
                   <DropdownMenuItem onClick={() => changeStatus(s.id, "Active")}>
-                    Mark as Active
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                    Active
                   </DropdownMenuItem>
                 )}
-                {s.status !== "Inactive" && (
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onClick={() => changeStatus(s.id, "Inactive")}
-                  >
-                    Deactivate
-                  </DropdownMenuItem>
-                )}
+                
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => deleteStaff(s.id)}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           )}

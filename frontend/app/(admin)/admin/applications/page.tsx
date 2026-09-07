@@ -39,16 +39,22 @@ export default function AdminApplicationsPage() {
     void load();
   }, [load]);
 
-  const setStatus = async (id: string, status: ApplicationStatus) => {
+  const setStatus = async (id: string, status: ApplicationStatus, remarks?: string) => {
     setBusy(id);
     try {
-      await applicationService.updateApplication(id, { status });
+      await applicationService.updateApplication(id, { status, remarks });
       await load();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to update application");
     } finally {
       setBusy(null);
     }
+  };
+
+  const rejectApplication = async (id: string) => {
+    const reason = window.prompt("Enter the reason for rejecting this application:");
+    if (!reason?.trim()) return;
+    await setStatus(id, "Rejected", reason.trim());
   };
 
   const assign = async (id: string) => {
@@ -87,6 +93,15 @@ export default function AdminApplicationsPage() {
     { key: "submittedOn", header: "Submitted", render: (a) => <span className="text-sm">{formatDate(a.submittedOn)}</span> },
     { key: "status", header: "Status", render: (a) => <StatusBadge status={a.status} /> },
     {
+      key: "rejectionReason",
+      header: "Rejection Reason",
+      render: (a) => (
+        <span className="text-sm text-destructive">
+          {a.status === "Rejected" ? a.remarks ?? "No reason provided" : "—"}
+        </span>
+      ),
+    },
+    {
       key: "actions",
       header: "",
       className: "text-right",
@@ -109,7 +124,7 @@ export default function AdminApplicationsPage() {
                 variant="outline"
                 className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10"
                 title="Reject"
-                onClick={() => setStatus(a.id, "Rejected")}
+                onClick={() => rejectApplication(a.id)}
                 disabled={busy === a.id}
               >
                 <X className="h-3.5 w-3.5" />

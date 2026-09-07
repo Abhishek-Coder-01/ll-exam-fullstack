@@ -28,6 +28,7 @@ function toApplication(a: RawApplication): Application {
     updatedOn: a.updatedOn,
     documentsCount: a.documentsCount,
     fee: a.fee,
+    remarks: a.remarks,
   };
 }
 

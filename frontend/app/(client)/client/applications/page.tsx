@@ -11,11 +11,13 @@ import { DataTable, type Column } from "@/components/tables/data-table";
 import { applicationService, ApiError } from "@/services";
 import type { Application } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export default function ClientApplicationsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     let cancelled = false;
@@ -46,8 +48,13 @@ export default function ClientApplicationsPage() {
       key: "actions",
       header: "",
       className: "text-right",
-      render: () => (
-        <Button size="sm" variant="ghost" className="h-8 gap-1" disabled>
+      render: (a) => (
+        <Button
+          size="sm"
+          variant="ghost"
+          className="h-8 gap-1"
+          onClick={() => router.push(`/client/dashboard?applicationId=${encodeURIComponent(a.id)}`)}
+        >
           <Eye className="h-3.5 w-3.5" /> View
         </Button>
       ),

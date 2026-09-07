@@ -39,16 +39,22 @@ export default function StaffApplicationsPage() {
     void load();
   }, [load]);
 
-  const setStatus = async (id: string, status: ApplicationStatus) => {
+  const setStatus = async (id: string, status: ApplicationStatus, remarks?: string) => {
     setBusy(id);
     try {
-      await applicationService.updateApplication(id, { status });
+      await applicationService.updateApplication(id, { status, remarks });
       await load();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to update application");
     } finally {
       setBusy(null);
     }
+  };
+
+  const rejectApplication = async (id: string) => {
+    const reason = window.prompt("Enter the reason for rejecting this application:");
+    if (!reason?.trim()) return;
+    await setStatus(id, "Rejected", reason.trim());
   };
 
   const columns: Column<Application>[] = [
@@ -92,7 +98,7 @@ export default function StaffApplicationsPage() {
             </DropdownMenuItem>
             <DropdownMenuItem
               className="text-destructive focus:text-destructive"
-              onClick={() => setStatus(a.id, "Rejected")}
+              onClick={() => rejectApplication(a.id)}
             >
               Reject
             </DropdownMenuItem>

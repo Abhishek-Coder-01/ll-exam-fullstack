@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { UserPlus, MoreHorizontal, Loader2, Power, Edit2, Trash2 } from "lucide-react";
+import { UserPlus, MoreHorizontal, Loader2, CheckCircle, Power, Edit2, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { DataTable, type Column } from "@/components/tables/data-table";
 import {
   DropdownMenu,
@@ -178,6 +179,11 @@ export default function AdminTeamLeadersPage() {
       render: (tl) => <span className="text-sm">{tl.activeTasks}</span>,
     },
     {
+      key: "status",
+      header: "Status",
+      render: (tl) => <StatusBadge status={tl.staffStatus ?? "Active"} />,
+    },
+    {
       key: "actions",
       header: "",
       className: "text-right",
@@ -195,8 +201,12 @@ export default function AdminTeamLeadersPage() {
                 Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => toggleActive(tl.id, tl.staffStatus ?? "Active")}>
-                <Power className="mr-2 h-4 w-4" />
-                {tl.staffStatus === "Active" ? "Deactivate" : "Activate"}
+                {tl.staffStatus === "Active" ? (
+                  <Power className="mr-2 h-4 w-4" />
+                ) : (
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                )}
+                {tl.staffStatus === "Active" ? "Inactive" : "Active"}
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"

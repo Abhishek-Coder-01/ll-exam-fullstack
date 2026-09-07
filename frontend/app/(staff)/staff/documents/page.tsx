@@ -35,16 +35,22 @@ export default function StaffDocumentsPage() {
     void load();
   }, [load]);
 
-  const setStatus = async (id: string, status: DocumentStatus) => {
+  const setStatus = async (id: string, status: DocumentStatus, remarks?: string) => {
     setBusy(id);
     try {
-      await documentService.updateDocumentStatus(id, status);
+      await documentService.updateDocumentStatus(id, status, remarks);
       await load();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to update document");
     } finally {
       setBusy(null);
     }
+  };
+
+  const rejectDocument = async (id: string) => {
+    const reason = window.prompt("Enter the reason for rejecting this document:");
+    if (!reason?.trim()) return;
+    await setStatus(id, "Rejected", reason.trim());
   };
 
   const download = async (id: string, name: string) => {
@@ -98,7 +104,7 @@ export default function StaffDocumentsPage() {
             variant="outline"
             className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10"
             title="Reject"
-            onClick={() => setStatus(d.id, "Rejected")}
+            onClick={() => rejectDocument(d.id)}
             disabled={busy === d.id}
           >
             <X className="h-3.5 w-3.5" />

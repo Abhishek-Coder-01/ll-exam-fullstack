@@ -63,6 +63,7 @@ export interface Application {
   updatedOn: string;
   documentsCount: number;
   fee: number;
+  remarks?: string;
 }
 
 export interface Payment {
@@ -83,6 +84,7 @@ export interface DocumentItem {
   status: DocumentStatus;
   uploadedOn: string;
   size: string;
+  remarks?: string;
 }
 
 export interface ChatMessage {

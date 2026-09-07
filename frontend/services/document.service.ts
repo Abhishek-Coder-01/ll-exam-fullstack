@@ -31,6 +31,7 @@ function toDoc(d: RawDocument): DocumentItem & {
     applicationId: d.applicationId,
     ownerId: d.ownerId,
     mimetype: d.mimetype,
+    remarks: d.remarks,
   };
 }
 

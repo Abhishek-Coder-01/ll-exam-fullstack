@@ -20,6 +20,7 @@ router.patch(
   validate({ body: updateStaffStatusSchema }),
   asyncHandler(ctrl.updateStaffStatus),
 );
+router.delete("/staff/:businessId", authorize("admin"), asyncHandler(ctrl.deleteStaff));
 
 // Team Leader — staff management
 router.get("/team-leaders", authorize("admin"), asyncHandler(ctrl.listTeamLeaders));

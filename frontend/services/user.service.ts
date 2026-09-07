@@ -104,6 +104,11 @@ export async function updateStaffStatus(
   return toStaff(data);
 }
 
+export async function deleteStaff(businessId: string): Promise<any> {
+  const { data } = await api.delete(`/users/staff/${businessId}`);
+  return data;
+}
+
 /* ------------------ Team leader management (admin) ------------------ */
 
 export interface TeamLeader {

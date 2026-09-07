@@ -103,11 +103,34 @@ export default function ClientDocumentsPage() {
             <p className="text-xs text-muted-foreground">
               {d.size} · {d.applicationId}
             </p>
+              {d.status === "Rejected" && d.remarks && (
+                <p className="mt-1 text-xs text-destructive">Reason: {d.remarks}</p>
+              )}
           </div>
         </div>
       ),
     },
-    { key: "type", header: "Type", render: (d) => <span className="text-sm">{d.type}</span> },
+    {
+      key: "type",
+      header: "Type & Requirement",
+      render: (d) => {
+        const isOptional = d.type.toLowerCase().includes("medical");
+        return (
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium">{d.type}</span>
+            {isOptional ? (
+              <span className="rounded bg-secondary px-1.5 py-0.5 text-[10px] text-muted-foreground font-medium">
+                Optional
+              </span>
+            ) : (
+              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-400 font-semibold">
+                Necessary
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
     { key: "uploadedOn", header: "Uploaded", render: (d) => <span className="text-sm">{formatDate(d.uploadedOn)}</span> },
     { key: "status", header: "Status", render: (d) => <StatusBadge status={d.status} /> },
     {
@@ -148,7 +171,14 @@ export default function ClientDocumentsPage() {
       />
 
       <Card className="mb-4">
-        <CardContent className="p-5">
+        <CardContent className="p-5 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
+            <div>
+              <h3 className="text-sm font-semibold">Upload Document</h3>
+              <p className="text-xs text-muted-foreground">Select your application and document type to upload</p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
             <div className="space-y-1.5">
               <p className="text-xs font-medium">Application</p>
@@ -178,25 +208,25 @@ export default function ClientDocumentsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Identity Proof">Identity Proof</SelectItem>
-                  <SelectItem value="Address Proof">Address Proof</SelectItem>
-                  <SelectItem value="Photograph">Photograph</SelectItem>
-                  <SelectItem value="Medical">Medical Certificate</SelectItem>
-                  <SelectItem value="Age Proof">Age Proof</SelectItem>
+                  <SelectItem value="Identity Proof">Identity Proof (Necessary)</SelectItem>
+                  <SelectItem value="Address Proof">Address Proof (Necessary)</SelectItem>
+                  <SelectItem value="Age Proof">Age Proof (Necessary)</SelectItem>
+                  <SelectItem value="Photograph">Passport Photo (Necessary)</SelectItem>
+                  <SelectItem value="Medical">Medical Certificate (Optional / Commercial)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <Button
               onClick={() => fileInputRef.current?.click()}
               disabled={!selectedApp || uploading || apps.length === 0}
-              className="gap-1"
+              className="gap-1.5"
             >
               {uploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <UploadCloud className="h-4 w-4" />
               )}
-              Upload
+              Upload Document
             </Button>
             <input
               ref={fileInputRef}
