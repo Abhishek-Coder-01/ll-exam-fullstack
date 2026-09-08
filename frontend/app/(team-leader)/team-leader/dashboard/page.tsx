@@ -15,20 +15,18 @@ export default function TeamLeaderDashboardPage() {
 
   useEffect(() => {
     if (!user) return;
-    const currentUser = user;
     let cancelled = false;
 
     async function load() {
       try {
         const [staffRes, appsRes] = await Promise.all([
-          userService.listStaff({ limit: 200, status: "Active" }),
+          userService.listTeamLeaderStaff(),
           applicationService.listApplications({ limit: 500 }),
         ]);
 
         if (cancelled) return;
 
-        const teamMembers = staffRes.items.filter((s) => (s as any).teamLeaderId === currentUser.businessId);
-        const teamMemberIds = teamMembers.map((s) => s.id);
+        const teamMemberIds = staffRes.map((s) => s.id);
         const activeApps = appsRes.items.filter(
           (a) => teamMemberIds.includes(a.assignedStaff ?? "") && ["Assigned", "In Progress"].includes(a.status),
         );
@@ -37,7 +35,7 @@ export default function TeamLeaderDashboardPage() {
         );
 
         setStats({
-          teamMembers: teamMembers.length,
+          teamMembers: teamMemberIds.length,
           activeApps: activeApps.length,
           completed: completed.length,
         });

@@ -28,7 +28,7 @@ OTP verification flow).
 
 - **Admin** → `/admin/dashboard` (Staff Management, Client Management, Applications, Payments,
   Reports, Notifications, Settings)
-- **Staff** → `/staff/dashboard` (Assigned Clients, Applications, Documents, Chat, Notifications, Profile)
+- **Staff** → `/staff/dashboard` (Assigned Clients, Applications, Documents, Notifications, Profile)
 - **Client** → `/client/dashboard` (New Application, My Applications, Documents, Payments,
   Notifications, Profile)
 

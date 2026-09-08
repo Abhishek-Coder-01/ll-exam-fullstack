@@ -4,7 +4,6 @@ import userRoutes from "./user.routes";
 import applicationRoutes from "./application.routes";
 import documentRoutes from "./document.routes";
 import paymentRoutes from "./payment.routes";
-import chatRoutes from "./chat.routes";
 import notificationRoutes from "./notification.routes";
 import reportRoutes from "./report.routes";
 
@@ -23,7 +22,6 @@ router.use("/users", userRoutes);
 router.use("/applications", applicationRoutes);
 router.use("/documents", documentRoutes);
 router.use("/payments", paymentRoutes);
-router.use("/chat", chatRoutes);
 router.use("/notifications", notificationRoutes);
 router.use("/reports", reportRoutes);
 

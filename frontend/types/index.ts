@@ -42,6 +42,8 @@ export interface StaffMember extends User {
   assignedClients: number;
   completedApplications: number;
   department: string;
+  availabilityStatus?: StaffAvailabilityStatus;
+  teamLeaderId?: string;
 }
 
 export interface Client extends User {
@@ -85,24 +87,6 @@ export interface DocumentItem {
   uploadedOn: string;
   size: string;
   remarks?: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  sender: string;
-  senderRole: Role;
-  message: string;
-  time: string;
-  isOwn?: boolean;
-}
-
-export interface ChatThread {
-  id: string;
-  clientName: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  avatarUrl?: string;
 }
 
 export interface Notification {

@@ -26,13 +26,11 @@ export default function TeamLeaderProfilePage() {
 
   useEffect(() => {
     if (!user) return;
-    const currentUser = user;
     let cancelled = false;
     async function loadStats() {
       try {
-        const res = await userService.listStaff({ limit: 200, status: "Active" });
+        const teamMembers = await userService.listTeamLeaderStaff();
         if (cancelled) return;
-        const teamMembers = res.items.filter((s) => (s as any).teamLeaderId === currentUser.businessId);
         setTeamMemberCount(teamMembers.length);
       } catch {
         // silent — stats are optional

@@ -8,7 +8,6 @@ import {
   Bell,
   Settings,
   FolderOpen,
-  MessageSquare,
   User,
   FilePlus2,
   CreditCard,
@@ -44,7 +43,6 @@ export const STAFF_NAV: NavItem[] = [
   { label: "Assigned Clients", href: "/staff/clients", icon: Users },
   { label: "Applications", href: "/staff/applications", icon: FileText },
   { label: "Documents", href: "/staff/documents", icon: FolderOpen },
-  { label: "Chat", href: "/staff/chat", icon: MessageSquare },
   { label: "Notifications", href: "/staff/notifications", icon: Bell },
   { label: "Profile", href: "/staff/profile", icon: User },
 ];

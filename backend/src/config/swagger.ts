@@ -9,7 +9,7 @@ const definition: OAS3Definition = {
     version: "1.0.0",
     description:
       "REST API for the LL Exam Portal — License & Learner Exam Management Dashboard. " +
-      "Auth (email/password + phone OTP), Applications, Documents, Payments, Chat, Notifications, Reports.",
+      "Auth (email/password + phone OTP), Applications, Documents, Payments, Notifications, and Reports.",
   },
   servers: [{ url: env.API_PREFIX, description: "Current environment" }],
   components: {
@@ -46,7 +46,6 @@ const definition: OAS3Definition = {
     { name: "Applications", description: "License applications workflow" },
     { name: "Documents", description: "Upload and verify documents" },
     { name: "Payments", description: "Fees and gateway integration (stub)" },
-    { name: "Chat", description: "Staff ↔ Client messaging" },
     { name: "Notifications", description: "In-app notifications" },
     { name: "Reports", description: "Admin dashboard analytics" },
   ],

@@ -28,21 +28,19 @@ export default function TeamLeaderStaffPage() {
 
   useEffect(() => {
     if (!user) return;
-    const currentUser = user;
     let cancelled = false;
     async function load() {
       try {
-        const res = await userService.listStaff({ limit: 200, status: "Active" });
+        const members = await userService.listTeamLeaderStaff();
         if (!cancelled) {
-          const teamMembers = res.items.filter((s) => (s as any).teamLeaderId === currentUser.businessId);
           setStaff(
-            teamMembers.map((member) => ({
+            members.map((member) => ({
               id: member.id,
               businessId: member.id,
               name: member.name,
               email: member.email,
               department: member.department,
-              availabilityStatus: (member as any).availabilityStatus ?? "Available",
+              availabilityStatus: member.availabilityStatus ?? "Available",
             })),
           );
         }

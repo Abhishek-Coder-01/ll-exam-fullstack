@@ -2,7 +2,11 @@ import { Router } from "express";
 import { authenticate, authorize } from "../middlewares/auth.middleware";
 import { asyncHandler } from "../utils/asyncHandler";
 import { validate } from "../middlewares/validate.middleware";
-import { updateStaffStatusSchema, updateProfileSchema } from "../validators";
+import {
+  assignStaffToTeamLeaderSchema,
+  updateStaffStatusSchema,
+  updateProfileSchema,
+} from "../validators";
 import * as ctrl from "../controllers/user.controller";
 
 const router = Router();
@@ -27,9 +31,17 @@ router.get("/team-leaders", authorize("admin"), asyncHandler(ctrl.listTeamLeader
 router.post("/team-leaders", authorize("admin"), asyncHandler(ctrl.createTeamLeader));
 router.patch("/team-leaders/:businessId", authorize("admin"), asyncHandler(ctrl.updateTeamLeader));
 router.patch("/team-leaders/:businessId/active", authorize("admin"), asyncHandler(ctrl.toggleTeamLeaderActive));
-router.patch("/team-leaders/:businessId/assign-staff", authorize("admin"), asyncHandler(ctrl.assignStaffToTeamLeader));
+router.patch(
+  "/team-leaders/:businessId/assign-staff",
+  authorize("admin"),
+  validate({ body: assignStaffToTeamLeaderSchema }),
+  asyncHandler(ctrl.assignStaffToTeamLeader),
+);
 router.patch("/team-leaders/:businessId/remove-staff", authorize("admin"), asyncHandler(ctrl.removeStaffFromTeamLeader));
 router.delete("/team-leaders/:businessId", authorize("admin"), asyncHandler(ctrl.deleteTeamLeader));
+
+// Team Leader — only the staff assigned to the authenticated leader
+router.get("/team-leader/staff", authorize("team_leader"), asyncHandler(ctrl.listTeamLeaderStaff));
 
 // Admin — client management
 router.get("/clients", authorize("admin"), asyncHandler(ctrl.listClients));

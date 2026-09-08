@@ -28,7 +28,9 @@ interface RawUser {
   isPhoneVerified?: boolean;
   isEmailVerified?: boolean;
   staffStatus?: string;
+  availabilityStatus?: string;
   department?: string;
+  teamLeaderId?: string;
   licenseType?: string;
   assignedStaffId?: string;
   assignedStaff?: string;
@@ -51,6 +53,8 @@ function toStaff(u: RawUser): StaffMember {
     assignedClients: u.assignedClients ?? 0,
     completedApplications: u.completedApplications ?? 0,
     department: u.department ?? "Licensing",
+    availabilityStatus: u.availabilityStatus as StaffMember["availabilityStatus"] ?? "Available",
+    teamLeaderId: u.teamLeaderId,
     createdAt: u.createdAt,
     avatarUrl: u.avatarUrl,
   };
@@ -186,10 +190,10 @@ export async function deleteTeamLeader(businessId: string): Promise<any> {
 
 export async function assignStaffToTeamLeader(
   teamLeaderBusinessId: string,
-  staffBusinessId: string,
+  staffBusinessIds: string[],
 ): Promise<any> {
   const { data } = await api.patch(`/users/team-leaders/${teamLeaderBusinessId}/assign-staff`, {
-    staffId: staffBusinessId,
+    staffIds: staffBusinessIds,
   });
   return data;
 }
@@ -237,6 +241,11 @@ export async function assignStaffToClient(
 export async function listAssignedClients(): Promise<Client[]> {
   const { data } = await api.get<RawUser[]>("/users/staff/assigned-clients");
   return data.map(toClient);
+}
+
+export async function listTeamLeaderStaff(): Promise<StaffMember[]> {
+  const { data } = await api.get<RawUser[]>("/users/team-leader/staff");
+  return data.map(toStaff);
 }
 
 /* ------------------ Self: profile ------------------ */

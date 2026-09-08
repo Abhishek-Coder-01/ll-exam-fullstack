@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MessageSquare, MoreHorizontal, Loader2 } from "lucide-react";
+import { MoreHorizontal, Loader2 } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { userService, chatService, ApiError } from "@/services";
+import { userService, ApiError } from "@/services";
 import type { Client } from "@/types";
 import { getInitials } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -43,15 +43,6 @@ export default function StaffClientsPage() {
     };
   }, []);
 
-  const openChat = async (clientId: string) => {
-    try {
-      await chatService.createOrGetThread(clientId, "staff");
-      router.push("/staff/chat");
-    } catch (err) {
-      alert(err instanceof ApiError ? err.message : "Failed to open chat");
-    }
-  };
-
   const columns: Column<Client>[] = [
     {
       key: "name",
@@ -79,9 +70,6 @@ export default function StaffClientsPage() {
       className: "text-right",
       render: (c) => (
         <div className="flex justify-end gap-1.5">
-          <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => openChat(c.id)}>
-            <MessageSquare className="h-3.5 w-3.5" /> Chat
-          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button size="icon" variant="ghost" className="h-8 w-8">

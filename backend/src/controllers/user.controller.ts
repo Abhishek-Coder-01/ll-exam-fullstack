@@ -139,18 +139,24 @@ export async function toggleTeamLeaderActive(req: Request, res: Response): Promi
 
 export async function assignStaffToTeamLeader(req: Request, res: Response): Promise<void> {
   const { businessId } = req.params;
-  const { staffId } = req.body as { staffId: string };
+  const { staffIds } = req.body as { staffIds: string[] };
 
   const teamLeader = await UserModel.findOne({ businessId, role: "team_leader" });
   if (!teamLeader) throw ApiError.notFound("Team leader not found");
 
-  const staff = await UserModel.findOne({ businessId: staffId, role: "staff" });
-  if (!staff) throw ApiError.notFound("Staff not found");
+  const uniqueStaffIds = [...new Set(staffIds)];
+  const staffMembers = await UserModel.find({
+    businessId: { $in: uniqueStaffIds },
+    role: "staff",
+  });
+  if (staffMembers.length !== uniqueStaffIds.length) throw ApiError.notFound("One or more staff members not found");
 
-  staff.teamLeaderId = teamLeader.businessId;
-  await staff.save();
+  await UserModel.updateMany(
+    { businessId: { $in: uniqueStaffIds }, role: "staff" },
+    { $set: { teamLeaderId: teamLeader.businessId } },
+  );
 
-  ok(res, staff.toPublicJSON(), "Staff assigned to team leader");
+  ok(res, { teamLeaderId: teamLeader.businessId, staffIds: uniqueStaffIds }, "Staff assigned to team leader");
 }
 
 export async function removeStaffFromTeamLeader(req: Request, res: Response): Promise<void> {
@@ -371,6 +377,21 @@ export async function listAssignedClients(req: Request, res: Response): Promise<
     })),
   );
   ok(res, items);
+}
+
+export async function listTeamLeaderStaff(req: Request, res: Response): Promise<void> {
+  if (!req.user) throw ApiError.unauthorized();
+
+  const staff = await UserModel.find({
+    role: "staff",
+    teamLeaderId: req.user.userId,
+  }).sort({ name: 1 });
+
+  ok(
+    res,
+    staff.map((member) => member.toPublicJSON()),
+    "Assigned staff list",
+  );
 }
 
 /* ----------------- Admin: dashboard stats ----------------- */

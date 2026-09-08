@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { UserPlus, MoreHorizontal, Loader2, CheckCircle, Power, Edit2, Trash2 } from "lucide-react";
+import { UserPlus, MoreHorizontal, Loader2, CheckCircle, Power, Edit2, Trash2, UserRound, X } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,10 +32,14 @@ import {
 } from "@/components/ui/select";
 import { userService, ApiError } from "@/services";
 import type { TeamLeader } from "@/services/user.service";
+import type { StaffMember } from "@/types";
 import { getInitials } from "@/lib/utils";
 
 export default function AdminTeamLeadersPage() {
   const [teamLeaders, setTeamLeaders] = useState<TeamLeader[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -52,8 +56,13 @@ export default function AdminTeamLeadersPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await userService.listTeamLeaders({ limit: 100 });
-      setTeamLeaders(res.items);
+      const [leaders, staffResponse] = await Promise.all([
+        userService.listTeamLeaders({ limit: 100 }),
+        userService.listStaff({ limit: 500 }),
+      ]);
+      setTeamLeaders(leaders.items);
+      setStaff(staffResponse.items);
+      setSelectedLeaderId((current) => current ?? leaders.items[0]?.id ?? null);
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to load team leaders");
@@ -61,6 +70,43 @@ export default function AdminTeamLeadersPage() {
       setLoading(false);
     }
   }, []);
+
+  const selectedLeader = teamLeaders.find((leader) => leader.id === selectedLeaderId);
+  const assignedStaff = staff.filter((member) => member.teamLeaderId === selectedLeaderId);
+  const availableStaff = staff.filter((member) => member.teamLeaderId !== selectedLeaderId);
+
+  const toggleStaffSelection = (staffId: string) => {
+    setSelectedStaffIds((current) =>
+      current.includes(staffId) ? current.filter((id) => id !== staffId) : [...current, staffId],
+    );
+  };
+
+  const assignSelectedStaff = async () => {
+    if (!selectedLeaderId || selectedStaffIds.length === 0) return;
+    setBusy("assignment");
+    try {
+      await userService.assignStaffToTeamLeader(selectedLeaderId, selectedStaffIds);
+      setSelectedStaffIds([]);
+      await load();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to assign staff");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const removeStaff = async (staffId: string) => {
+    if (!selectedLeaderId) return;
+    setBusy(staffId);
+    try {
+      await userService.removeStaffFromTeamLeader(selectedLeaderId, staffId);
+      await load();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.message : "Failed to remove staff");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   useEffect(() => {
     void load();
@@ -242,14 +288,93 @@ export default function AdminTeamLeadersPage() {
           ) : error ? (
             <p className="py-6 text-center text-sm text-destructive">{error}</p>
           ) : (
-            <DataTable
-              columns={columns}
-              data={teamLeaders}
-              searchKeys={["name", "email", "id"]}
-              searchPlaceholder="Search by name, email, or ID..."
-              emptyTitle="No team leaders yet"
-              emptyDescription="Create a team leader to manage staff and tasks."
-            />
+            <>
+              <DataTable
+                columns={columns}
+                data={teamLeaders}
+                searchKeys={["name", "email", "id"]}
+                searchPlaceholder="Search by name, email, or ID..."
+                emptyTitle="No team leaders yet"
+                emptyDescription="Create a team leader to manage staff and tasks."
+              />
+              {selectedLeader && (
+                <div className="mt-6 border-t pt-6">
+                  <div className="mb-4 flex items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-semibold">Assign Staff</h2>
+                      <p className="text-sm text-muted-foreground">Manage staff assigned to {selectedLeader.name}.</p>
+                    </div>
+                    <Select value={selectedLeader.id} onValueChange={(value) => {
+                      setSelectedLeaderId(value);
+                      setSelectedStaffIds([]);
+                    }}>
+                      <SelectTrigger className="w-[220px]">
+                        <SelectValue placeholder="Select team leader" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {teamLeaders.map((leader) => (
+                          <SelectItem key={leader.id} value={leader.id}>{leader.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-5 lg:grid-cols-2">
+                    <div className="rounded-md border p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="font-medium">Assigned Staff</h3>
+                        <span className="text-xs text-muted-foreground">{assignedStaff.length}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {assignedStaff.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No staff assigned yet.</p>
+                        ) : assignedStaff.map((member) => (
+                          <div key={member.id} className="flex items-center justify-between rounded border px-3 py-2">
+                            <div className="flex items-center gap-2">
+                              <UserRound className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="text-sm font-medium">{member.name}</p>
+                                <p className="text-xs text-muted-foreground">{member.id}</p>
+                              </div>
+                            </div>
+                            <Button size="sm" variant="ghost" onClick={() => removeStaff(member.id)} disabled={busy === member.id}>
+                              <X className="mr-1 h-4 w-4" /> Remove
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="rounded-md border p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <h3 className="font-medium">Available Staff</h3>
+                        <span className="text-xs text-muted-foreground">{availableStaff.length}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {availableStaff.length === 0 ? (
+                          <p className="text-sm text-muted-foreground">No other staff members available.</p>
+                        ) : availableStaff.map((member) => (
+                          <label key={member.id} className="flex cursor-pointer items-center gap-3 rounded border px-3 py-2 hover:bg-muted/50">
+                            <input
+                              type="checkbox"
+                              checked={selectedStaffIds.includes(member.id)}
+                              onChange={() => toggleStaffSelection(member.id)}
+                              className="h-4 w-4 accent-primary"
+                            />
+                            <div>
+                              <p className="text-sm font-medium">{member.name}</p>
+                              <p className="text-xs text-muted-foreground">{member.id}{member.teamLeaderId ? " · Reassign" : " · Unassigned"}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                      <Button className="mt-4" onClick={assignSelectedStaff} disabled={busy === "assignment" || selectedStaffIds.length === 0}>
+                        {busy === "assignment" && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Assign Selected ({selectedStaffIds.length})
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

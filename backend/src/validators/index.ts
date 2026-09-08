@@ -36,6 +36,10 @@ export const updateStaffStatusSchema = z.object({
   staffStatus: z.enum(STAFF_STATUSES as [string, ...string[]]),
 });
 
+export const assignStaffToTeamLeaderSchema = z.object({
+  staffIds: z.array(z.string().min(1)).min(1),
+});
+
 export const updateStaffAvailabilitySchema = z.object({
   availabilityStatus: z.enum(STAFF_AVAILABILITY_STATUSES as [string, ...string[]]),
 });
@@ -53,15 +57,6 @@ export const verifyPaymentSchema = z.object({
 
 export const updatePaymentStatusSchema = z.object({
   status: z.enum(PAYMENT_STATUSES as [string, ...string[]]),
-});
-
-export const sendMessageSchema = z.object({
-  threadId: z.string().min(1),
-  message: z.string().min(1),
-});
-
-export const createThreadSchema = z.object({
-  clientId: z.string().min(1),
 });
 
 export const updateProfileSchema = z.object({

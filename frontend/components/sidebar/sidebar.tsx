@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ShieldCheck, ChevronRight, Loader2 } from "lucide-react";
+import { ShieldCheck, ChevronRight, Loader2, } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_NAME, type NavItem, type Role } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
@@ -132,9 +132,44 @@ function SidebarBrand({ role }: { role: Role }) {
   );
 }
 
-function SidebarFooter() {
+function ClientSupportButton() {
+  const whatsappSupportNumber = "+917499949407"; // Replace with the actual support number
+  const whatsappMessage = "Hello Sir, I need help regarding my LL exam/application. Please assist me.";
+
+  const openWhatsApp = () => {
+    const url = `https://wa.me/${whatsappSupportNumber}?text=${encodeURIComponent(whatsappMessage)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  return (
+
+<button
+  type="button"
+  onClick={openWhatsApp}
+  className="mx-5 mb-3 flex items-center justify-center gap-2 rounded-xl border border-green-300/60 bg-green-500 px-3 py-2.5 text-sm font-semibold text-white shadow-lg shadow-green-900/20 transition hover:bg-green-600"
+  aria-label="Contact support on WhatsApp"
+>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="currentColor"
+    className="h-5 w-5 shrink-0"
+    aria-hidden="true"
+  >
+    <path d="M20.52 3.48A11.86 11.86 0 0 0 12.08 0C5.53 0 .2 5.33.2 11.88c0 2.09.55 4.13 1.59 5.93L.1 24l6.33-1.66a11.83 11.83 0 0 0 5.65 1.44h.01c6.55 0 11.88-5.33 11.88-11.88 0-3.17-1.23-6.15-3.45-8.42ZM12.09 21.8h-.01a9.87 9.87 0 0 1-5.03-1.38l-.36-.21-3.76.99 1-3.67-.23-.38a9.87 9.87 0 1 1 8.39 4.65Zm5.41-7.4c-.3-.15-1.77-.87-2.04-.97-.27-.1-.47-.15-.67.15-.2.3-.77.97-.94 1.17-.17.2-.35.22-.65.07-.3-.15-1.26-.46-2.4-1.47-.89-.79-1.49-1.76-1.66-2.06-.17-.3-.02-.46.13-.61.13-.13.3-.35.45-.52.15-.17.2-.3.3-.5.1-.2.05-.37-.02-.52-.07-.15-.67-1.62-.92-2.22-.24-.58-.49-.5-.67-.51h-.57c-.2 0-.52.07-.8.37-.27.3-1.04 1.02-1.04 2.49s1.07 2.89 1.22 3.09c.15.2 2.1 3.2 5.08 4.49.71.31 1.27.49 1.7.63.71.23 1.35.2 1.86.12.57-.09 1.77-.72 2.02-1.42.25-.7.25-1.3.17-1.42-.07-.12-.27-.2-.57-.35Z" />
+  </svg>
+
+  WhatsApp Help
+</button>
+
+
+  );
+}
+
+function SidebarFooter({ role }: { role: Role }) {
   return (
     <div className="border-t border-blue-400/20 px-5 py-4">
+      {role === "client" && <ClientSupportButton />}
       <div className="flex items-center gap-2">
         <div className="h-1.5 w-1.5 rounded-full bg-blue-300" />
         <p className="text-[11px] leading-relaxed text-blue-100/80 font-medium">
@@ -153,7 +188,7 @@ export function Sidebar({ items, role }: { items: NavItem[]; role: Role }) {
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col bg-gradient-to-b from-blue-700 to-blue-800 lg:flex">
       <SidebarBrand role={role} />
       <NavLinks items={items} />
-      <SidebarFooter />
+      <SidebarFooter role={role} />
     </aside>
   );
 }
@@ -177,7 +212,7 @@ export function MobileSidebar({
         </VisuallyHidden>
         <SidebarBrand role={role} />
         <NavLinks items={items} onNavigate={() => onOpenChange(false)} />
-        <SidebarFooter />
+        <SidebarFooter role={role} />
       </SheetContent>
     </Sheet>
   );
