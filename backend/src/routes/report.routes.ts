@@ -10,5 +10,6 @@ router.get("/applications-over-time", asyncHandler(ctrl.applicationsOverTime));
 router.get("/payments-over-time", asyncHandler(ctrl.paymentsOverTime));
 router.get("/application-status-breakdown", asyncHandler(ctrl.applicationStatusBreakdown));
 router.get("/recent-activity", asyncHandler(ctrl.recentActivity));
+router.get("/export/excel", asyncHandler(ctrl.exportExcel));
 
 export default router;

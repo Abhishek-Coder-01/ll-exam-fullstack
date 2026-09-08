@@ -26,3 +26,4 @@ router.use("/notifications", notificationRoutes);
 router.use("/reports", reportRoutes);
 
 export default router;
+

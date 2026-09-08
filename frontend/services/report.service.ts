@@ -1,4 +1,4 @@
-import { api } from "./api";
+import { api, fetchBlob } from "./api";
 import type { ChartPoint } from "@/types";
 
 export async function applicationsOverTime(): Promise<ChartPoint[]> {
@@ -59,4 +59,18 @@ export async function recentActivity(): Promise<RecentActivityItem[]> {
     target: a.target,
     time: timeAgo(a.createdAt),
   }));
+}
+
+export type ExcelExportType =
+  | "all"
+  | "team-leaders"
+  | "staff"
+  | "clients"
+  | "applications"
+  | "payments";
+
+export async function downloadExcelExport(
+  type: ExcelExportType = "all",
+): Promise<{ blob: Blob; filename?: string } | null> {
+  return fetchBlob(`/reports/export/excel?type=${type}`);
 }

@@ -11,7 +11,14 @@
     "seed": "tsx src/jobs/seed.ts",
     "typecheck": "tsc --noEmit"
   },
-  "keywords": ["mern", "express", "mongodb", "typescript", "license", "otp"],
+  "keywords": [
+    "mern",
+    "express",
+    "mongodb",
+    "typescript",
+    "license",
+    "otp"
+  ],
   "author": "LL Exam Portal Team",
   "license": "MIT",
   "dependencies": {
@@ -30,6 +37,7 @@
     "swagger-ui-express": "^5.0.1",
     "twilio": "^5.4.0",
     "uuid": "^11.0.5",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {
