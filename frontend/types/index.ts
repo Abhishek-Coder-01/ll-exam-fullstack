@@ -62,6 +62,7 @@ export interface Application {
   type: string;
   status: ApplicationStatus;
   assignedStaff?: string;
+  assignedStaffId?: string;
   submittedOn: string;
   updatedOn: string;
   documentsCount: number;

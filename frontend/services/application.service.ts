@@ -24,6 +24,7 @@ function toApplication(a: RawApplication): Application {
     type: a.type,
     status: a.status,
     assignedStaff: a.assignedStaffName,
+    assignedStaffId: a.assignedStaffId,
     submittedOn: a.submittedOn,
     updatedOn: a.updatedOn,
     documentsCount: a.documentsCount,

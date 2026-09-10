@@ -36,6 +36,7 @@ export default function TeamLeaderApplicationsPage() {
     { key: "id", header: "Application ID", render: (a) => <span className="text-sm font-medium">{a.id}</span> },
     { key: "applicantName", header: "Client", render: (a) => <span className="text-sm">{a.applicantName}</span> },
     { key: "type", header: "Type", render: (a) => <span className="text-sm">{a.type}</span> },
+    { key: "assignedStaff", header: "Assigned Staff", render: (a) => <span className="text-sm">{a.assignedStaff ?? "Unassigned"}</span> },
     { key: "status", header: "Status", render: (a) => <StatusBadge status={a.status} /> },
     { key: "submittedOn", header: "Submitted", render: (a) => <span className="text-xs text-muted-foreground">{new Date(a.submittedOn).toLocaleDateString()}</span> },
   ];

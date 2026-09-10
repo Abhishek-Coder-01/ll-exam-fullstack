@@ -10,6 +10,7 @@ import { pushNotification } from "../services/notification.service";
 import type { ApplicationStatus } from "../types/domain";
 import { assignApplicationToAvailableStaff } from "../services/taskAssignment.service";
 import { parsePagination } from "../utils/pagination";
+import { TaskAssignmentLogModel } from "../models/TaskAssignmentLog.model";
 
 const DEFAULT_FEES: Record<string, number> = {
   "Learner's License": 350,
@@ -211,9 +212,20 @@ export async function updateApplication(req: Request, res: Response): Promise<vo
     if (patch.assignedStaffId !== undefined) {
       const staff = await UserModel.findOne({ businessId: patch.assignedStaffId, role: "staff" });
       if (!staff) throw ApiError.notFound("Assignee staff not found");
+      if (!["Approved", "Active"].includes(staff.staffStatus ?? "")) {
+        throw ApiError.badRequest("Selected staff member is not active");
+      }
+      const previousStaffId = app.assignedStaffId;
+      const isReassignment = Boolean(previousStaffId && previousStaffId !== staff.businessId);
       app.assignedStaffId = staff.businessId;
       app.assignedStaffName = staff.name;
       if (app.status === "Submitted") app.status = "Assigned Staff";
+      // Keep the client-management owner in sync when an admin or team leader
+      // assigns/reassigns an application directly.
+      await UserModel.updateOne(
+        { businessId: app.applicantId, role: "client" },
+        { $set: { assignedStaffId: staff.businessId } },
+      );
       await pushNotification({
         recipientId: staff.businessId,
         title: "Application assigned",
@@ -221,6 +233,22 @@ export async function updateApplication(req: Request, res: Response): Promise<vo
         type: "info",
         link: "/staff/applications",
       });
+      if (isReassignment && previousStaffId) {
+        await TaskAssignmentLogModel.create({
+          taskId: app.businessId,
+          previousStaffId,
+          newStaffId: staff.businessId,
+          assignedBy: req.user.userId,
+          assignmentType: "MANUAL",
+        });
+        await pushNotification({
+          recipientId: previousStaffId,
+          title: "Application reassigned",
+          description: `${app.businessId} has been reassigned to ${staff.name}. Your completed work remains recorded.`,
+          type: "warning",
+          link: "/staff/applications",
+        });
+      }
     }
     if (patch.remarks !== undefined) app.remarks = patch.remarks;
     if (patch.fee !== undefined) app.fee = patch.fee;

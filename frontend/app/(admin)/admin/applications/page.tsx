@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Check, X, MoreHorizontal, FileText, Loader2 } from "lucide-react";
+import { Check, X, MoreHorizontal, FileText, Loader2, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,9 @@ export default function AdminApplicationsPage() {
   const [busy, setBusy] = useState<string | null>(null);
   const [rejectingApplicationId, setRejectingApplicationId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [assigningApplication, setAssigningApplication] = useState<Application | null>(null);
+  const [assignStaffId, setAssignStaffId] = useState("");
+  const [reassignmentConfirmed, setReassignmentConfirmed] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -80,13 +83,29 @@ export default function AdminApplicationsPage() {
     setRejectionReason("");
   };
 
-  const assign = async (id: string) => {
-    const staffId = window.prompt("Enter staff Business ID to assign (e.g. STF-101)");
-    if (!staffId) return;
+  const openAssignDialog = (application: Application) => {
+    setAssigningApplication(application);
+    setAssignStaffId("");
+    setReassignmentConfirmed(false);
+  };
+
+  const closeAssignDialog = () => {
+    if (assigningApplication && busy === assigningApplication.id) return;
+    setAssigningApplication(null);
+    setAssignStaffId("");
+    setReassignmentConfirmed(false);
+  };
+
+  const assign = async () => {
+    if (!assigningApplication || !assignStaffId.trim()) return;
+    const isReassignment = Boolean(assigningApplication.assignedStaffId && assignStaffId.trim() !== assigningApplication.assignedStaffId);
+    if (isReassignment && !reassignmentConfirmed) return;
+    const id = assigningApplication.id;
     setBusy(id);
     try {
-      await applicationService.updateApplication(id, { assignedStaffId: staffId.trim() });
+      await applicationService.updateApplication(id, { assignedStaffId: assignStaffId.trim() });
       await load();
+      closeAssignDialog();
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to assign staff");
     } finally {
@@ -161,7 +180,7 @@ export default function AdminApplicationsPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => assign(a.id)}>Assign staff</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => openAssignDialog(a)}>Assign / reassign staff</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setStatus(a.id, "Under Review")}>
                 Mark under review
               </DropdownMenuItem>
@@ -204,6 +223,65 @@ export default function AdminApplicationsPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog
+        open={Boolean(assigningApplication)}
+        onOpenChange={(open) => {
+          if (!open) closeAssignDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign or reassign staff</DialogTitle>
+            <DialogDescription>
+              {assigningApplication?.id} · {assigningApplication?.applicantName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+              <p><span className="font-medium">Current status:</span> {assigningApplication?.status}</p>
+              <p><span className="font-medium">Current staff:</span> {assigningApplication?.assignedStaff ?? "Unassigned"}</p>
+            </div>
+            {assigningApplication?.assignedStaff && (
+              <div className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>This application already has work assigned. Reassigning it will move future work to the new staff, while previous work and assignment history remain saved.</p>
+              </div>
+            )}
+            <div className="space-y-2">
+              <label htmlFor="assign-staff-id" className="text-sm font-medium">New staff Business ID</label>
+              <input
+                id="assign-staff-id"
+                value={assignStaffId}
+                onChange={(event) => setAssignStaffId(event.target.value)}
+                placeholder="Example: STF-101"
+                autoFocus
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </div>
+            {assigningApplication?.assignedStaffId && assignStaffId.trim() && assignStaffId.trim() !== assigningApplication.assignedStaffId && (
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={reassignmentConfirmed}
+                  onChange={(event) => setReassignmentConfirmed(event.target.checked)}
+                  className="mt-1"
+                />
+                <span>I understand this is a reassignment and the application will continue from its current status.</span>
+              </label>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeAssignDialog} disabled={busy === assigningApplication?.id}>Cancel</Button>
+            <Button
+              onClick={() => void assign()}
+              disabled={!assignStaffId.trim() || Boolean(assigningApplication?.assignedStaffId && assignStaffId.trim() !== assigningApplication.assignedStaffId && !reassignmentConfirmed) || busy === assigningApplication?.id}
+            >
+              {busy === assigningApplication?.id ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Confirm assignment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={Boolean(rejectingApplicationId)}
         onOpenChange={(open) => {

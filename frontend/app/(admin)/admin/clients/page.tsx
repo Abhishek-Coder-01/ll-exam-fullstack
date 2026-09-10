@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { usePathname } from "next/navigation";
-import { MoreHorizontal, Loader2, Users, UserCheck } from "lucide-react";
+import { MoreHorizontal, Loader2, Users, UserCheck, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ export default function AdminClientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [assigningClient, setAssigningClient] = useState<Client | null>(null);
   const [selectedStaffId, setSelectedStaffId] = useState("");
+  const [reassignmentConfirmed, setReassignmentConfirmed] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
   const load = useCallback(async () => {
@@ -88,22 +89,27 @@ export default function AdminClientsPage() {
   const openAssignDialog = (client: Client) => {
     setAssigningClient(client);
     setSelectedStaffId(client.assignedStaffId ?? "");
+    setReassignmentConfirmed(false);
   };
 
   const closeAssignDialog = () => {
     if (assigning) return;
     setAssigningClient(null);
     setSelectedStaffId("");
+    setReassignmentConfirmed(false);
   };
 
   const assign = async () => {
     if (!assigningClient || !selectedStaffId) return;
+    const isReassignment = Boolean(assigningClient.assignedStaffId && selectedStaffId !== assigningClient.assignedStaffId);
+    if (isReassignment && !reassignmentConfirmed) return;
     setAssigning(true);
     try {
       await userService.assignStaffToClient(assigningClient.id, selectedStaffId);
       await load();
       setAssigningClient(null);
       setSelectedStaffId("");
+      setReassignmentConfirmed(false);
     } catch (err) {
       alert(err instanceof ApiError ? err.message : "Failed to assign staff");
     } finally {
@@ -234,6 +240,24 @@ export default function AdminClientsPage() {
             )}
           </div>
 
+          {assigningClient?.assignedStaffId && selectedStaffId && selectedStaffId !== assigningClient.assignedStaffId && (
+            <div className="space-y-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-800">
+              <div className="flex gap-2">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <p>This client already has an assigned staff member. Reassigning will move future work to the new staff; existing application progress and history will remain saved.</p>
+              </div>
+              <label className="flex cursor-pointer items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={reassignmentConfirmed}
+                  onChange={(event) => setReassignmentConfirmed(event.target.checked)}
+                  className="mt-1"
+                />
+                <span>I understand and want to reassign this client.</span>
+              </label>
+            </div>
+          )}
+
           <div className="space-y-2">
             <p className="text-sm font-medium">Select staff</p>
             {eligibleStaff.length === 0 ? (
@@ -276,7 +300,10 @@ export default function AdminClientsPage() {
             <Button variant="outline" onClick={closeAssignDialog} disabled={assigning}>
               Cancel
             </Button>
-            <Button onClick={() => void assign()} disabled={!selectedStaffId || assigning}>
+            <Button
+              onClick={() => void assign()}
+              disabled={!selectedStaffId || assigning || Boolean(assigningClient?.assignedStaffId && selectedStaffId !== assigningClient.assignedStaffId && !reassignmentConfirmed)}
+            >
               {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               Assign staff
             </Button>

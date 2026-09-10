@@ -6,6 +6,7 @@ import { ApplicationModel } from "../models/Application.model";
 import { PaymentModel } from "../models/Payment.model";
 import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
+import { TaskAssignmentLogModel } from "../models/TaskAssignmentLog.model";
 import { generateTeamLeaderId } from "../utils/idGenerator";
 import { parsePagination } from "../utils/pagination";
 
@@ -300,12 +301,18 @@ export async function listClients(req: Request, res: Response): Promise<void> {
   if (req.user?.role === "team_leader") {
     const teamStaffIds = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId })
       .distinct("businessId");
+    const teamApplicationClientIds = await ApplicationModel.find({
+      assignedStaffId: { $in: teamStaffIds.length ? teamStaffIds : ["__none__"] },
+    }).distinct("applicantId");
     // Team leaders can manage clients already belonging to their team and
-    // unassigned clients, so they can take ownership when admin is absent.
+    // clients whose applications are assigned to their team. The application
+    // fallback also keeps legacy records visible when the client-level field
+    // was not populated by an older auto-assignment.
     filter.$and = [
       {
         $or: [
           { assignedStaffId: { $in: teamStaffIds.length ? teamStaffIds : ["__none__"] } },
+          { businessId: { $in: teamApplicationClientIds.length ? teamApplicationClientIds : ["__none__"] } },
           { assignedStaffId: { $exists: false } },
           { assignedStaffId: null },
         ],
@@ -333,12 +340,19 @@ export async function listClients(req: Request, res: Response): Promise<void> {
   const items2 = await Promise.all(
     items.map(async (u) => {
       const applications = await ApplicationModel.countDocuments({ applicantId: u.businessId });
-      let assignedStaffName: string | undefined;
-      if (u.assignedStaffId) {
-        const staff = await UserModel.findOne({ businessId: u.assignedStaffId });
+      const latestAssignedApplication = !u.assignedStaffId
+        ? await ApplicationModel.findOne({ applicantId: u.businessId, assignedStaffId: { $exists: true, $ne: null } })
+            .sort({ updatedOn: -1, createdAt: -1 })
+            .select("assignedStaffId assignedStaffName")
+            .lean()
+        : null;
+      const assignedStaffId = u.assignedStaffId ?? latestAssignedApplication?.assignedStaffId;
+      let assignedStaffName = latestAssignedApplication?.assignedStaffName;
+      if (assignedStaffId && !assignedStaffName) {
+        const staff = await UserModel.findOne({ businessId: assignedStaffId }).select("name").lean();
         assignedStaffName = staff?.name;
       }
-      return { ...u.toPublicJSON(), applications, assignedStaff: assignedStaffName };
+      return { ...u.toPublicJSON(), applications, assignedStaffId, assignedStaff: assignedStaffName };
     }),
   );
 
@@ -352,6 +366,9 @@ export async function assignStaffToClient(req: Request, res: Response): Promise<
   if (!client) throw ApiError.notFound("Client not found");
   const staff = await UserModel.findOne({ businessId: staffId, role: "staff" });
   if (!staff) throw ApiError.notFound("Staff not found");
+  if (!["Approved", "Active"].includes(staff.staffStatus ?? "")) {
+    throw ApiError.badRequest("Selected staff member is not active");
+  }
   if (req.user?.role === "team_leader" && staff.teamLeaderId !== req.user.userId) {
     throw ApiError.forbidden("You can only assign clients to staff in your own team");
   }
@@ -361,8 +378,54 @@ export async function assignStaffToClient(req: Request, res: Response): Promise<
   ) {
     throw ApiError.badRequest("Selected staff member is not active");
   }
+  const existingApplications = await ApplicationModel.find({ applicantId: client.businessId })
+    .select("businessId assignedStaffId")
+    .lean();
+  const changedApplications = existingApplications.filter(
+    (application) => application.assignedStaffId !== staff.businessId,
+  );
+
   client.assignedStaffId = staff.businessId;
   await client.save();
+
+  // A client assignment is also the owner assignment for that client's
+  // existing applications. This keeps Client Management and Applications
+  // consistent after admin/team-leader reassignment.
+  await ApplicationModel.updateMany(
+    { applicantId: client.businessId },
+    { $set: { assignedStaffId: staff.businessId, assignedStaffName: staff.name, updatedOn: new Date() } },
+  );
+
+  if (changedApplications.length) {
+    await TaskAssignmentLogModel.insertMany(
+      changedApplications.map((application) => ({
+        taskId: application.businessId,
+        previousStaffId: application.assignedStaffId,
+        newStaffId: staff.businessId,
+        assignedBy: req.user?.userId ?? "system",
+        assignmentType: "MANUAL" as const,
+      })),
+    );
+
+    const previousStaffIds = [
+      ...new Set(
+        changedApplications
+          .map((application) => application.assignedStaffId)
+          .filter((previousStaffId): previousStaffId is string => Boolean(previousStaffId && previousStaffId !== staff.businessId)),
+      ),
+    ];
+    await Promise.all(
+      previousStaffIds.map((previousStaffId) =>
+        pushNotification({
+          recipientId: previousStaffId,
+          title: "Client applications reassigned",
+          description: `${client.name}'s applications have been reassigned to ${staff.name}. Existing work remains recorded.`,
+          type: "warning",
+          link: "/staff/applications",
+        }),
+      ),
+    );
+  }
 
   await pushNotification({
     recipientId: staff.businessId,

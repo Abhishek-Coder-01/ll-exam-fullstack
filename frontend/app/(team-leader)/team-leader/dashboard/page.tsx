@@ -28,10 +28,10 @@ export default function TeamLeaderDashboardPage() {
 
         const teamMemberIds = staffRes.map((s) => s.id);
         const activeApps = appsRes.items.filter(
-          (a) => teamMemberIds.includes(a.assignedStaff ?? "") && ["Assigned", "In Progress"].includes(a.status),
+          (a) => teamMemberIds.includes(a.assignedStaffId ?? "") && ["Assigned", "In Progress"].includes(a.status),
         );
         const completed = appsRes.items.filter(
-          (a) => teamMemberIds.includes(a.assignedStaff ?? "") && ["Completed", "Approved"].includes(a.status),
+          (a) => teamMemberIds.includes(a.assignedStaffId ?? "") && ["Completed", "Approved"].includes(a.status),
         );
 
         setStats({
