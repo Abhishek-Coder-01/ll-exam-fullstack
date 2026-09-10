@@ -65,3 +65,16 @@ export const updateProfileSchema = z.object({
   department: z.string().optional(),
   licenseType: z.string().optional(),
 });
+
+export const createTeamLeaderSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  email: z.string().trim().toLowerCase().email(),
+  phone: z.string().trim().min(8).max(20),
+  password: z.string().min(8).max(128),
+  department: z.enum(["Licensing", "Verification", "Payments"]).optional(),
+});
+
+export const updateTeamLeaderSchema = createTeamLeaderSchema.partial().omit({ password: true });
+export const toggleTeamLeaderSchema = z.object({ active: z.boolean() });
+export const removeStaffSchema = z.object({ staffId: z.string().min(1) });
+export const assignClientSchema = z.object({ staffId: z.string().min(1) });

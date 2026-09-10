@@ -67,10 +67,14 @@ export async function exportExcel(req: Request, res: Response): Promise<void> {
     return;
   }
   const exportType = requestedType as (typeof exportTypes)[number];
+  // XLSX generation is memory-heavy; cap each source to prevent an admin export
+  // from exhausting the API process. Large exports should use a background job.
+  const EXPORT_MAX_ROWS = 10_000;
   const [users, applications, payments] = await Promise.all([
-    UserModel.find({ role: { $in: ["staff", "team_leader", "client"] } }).sort({ createdAt: -1 }).lean(),
-    ApplicationModel.find({}).sort({ submittedOn: -1 }).lean(),
-    PaymentModel.find({}).sort({ date: -1 }).lean(),
+    UserModel.find({ role: { $in: ["staff", "team_leader", "client"] } })
+      .sort({ createdAt: -1 }).limit(EXPORT_MAX_ROWS).lean(),
+    ApplicationModel.find({}).sort({ submittedOn: -1 }).limit(EXPORT_MAX_ROWS).lean(),
+    PaymentModel.find({}).sort({ date: -1 }).limit(EXPORT_MAX_ROWS).lean(),
   ]);
 
   const teamLeaders = users.filter((user) => user.role === "team_leader");

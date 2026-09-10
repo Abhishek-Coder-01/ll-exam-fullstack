@@ -46,6 +46,9 @@ const documentSchema = new Schema<IDocumentItem>(
   { timestamps: true },
 );
 
+documentSchema.index({ ownerId: 1, createdAt: -1 });
+documentSchema.index({ applicationId: 1, createdAt: -1 });
+
 export const DocumentItemModel: Model<IDocumentItem> = model<IDocumentItem>(
   "DocumentItem",
   documentSchema,

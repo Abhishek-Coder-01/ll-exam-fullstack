@@ -79,7 +79,7 @@ router.post("/login", authLimiter, validate({ body: loginSchema }), asyncHandler
  *     tags: [Auth]
  *     summary: Refresh access token
  */
-router.post("/refresh", validate({ body: refreshSchema }), asyncHandler(auth.refresh));
+router.post("/refresh", authLimiter, validate({ body: refreshSchema }), asyncHandler(auth.refresh));
 
 router.post("/logout", asyncHandler(auth.logout));
 

@@ -14,12 +14,16 @@ interface RawDocument {
   mimetype: string;
   storagePath: string;
   remarks?: string;
+  applicantName?: string;
+  applicationType?: string;
 }
 
 function toDoc(d: RawDocument): DocumentItem & {
   applicationId: string;
   ownerId: string;
   mimetype: string;
+  applicantName?: string;
+  applicationType?: string;
 } {
   return {
     id: d.businessId,
@@ -32,11 +36,15 @@ function toDoc(d: RawDocument): DocumentItem & {
     ownerId: d.ownerId,
     mimetype: d.mimetype,
     remarks: d.remarks,
+    applicantName: d.applicantName,
+    applicationType: d.applicationType,
   };
 }
 
-export async function listDocuments(params: { applicationId?: string; status?: string } = {}) {
-  const { data } = await api.get<RawDocument[]>("/documents", { query: params });
+export async function listDocuments(params: { applicationId?: string; status?: string; page?: string; limit?: string } = {}) {
+  const { data } = await api.get<RawDocument[]>("/documents", {
+    query: { limit: "100", ...params },
+  });
   return data.map(toDoc);
 }
 

@@ -7,6 +7,7 @@ import { PaymentModel } from "../models/Payment.model";
 import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
 import { generateTeamLeaderId } from "../utils/idGenerator";
+import { parsePagination } from "../utils/pagination";
 
 /* ----------------- Profile (self) ----------------- */
 
@@ -43,10 +44,9 @@ export async function listTeamLeaders(req: Request, res: Response): Promise<void
     ];
   }
 
-  const p = Number(page);
-  const l = Number(limit);
+  const { page: p, limit: l, skip } = parsePagination(page, limit);
   const [items, total] = await Promise.all([
-    UserModel.find(filter).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l),
+    UserModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     UserModel.countDocuments(filter),
   ]);
 
@@ -195,6 +195,7 @@ export async function deleteTeamLeader(req: Request, res: Response): Promise<voi
 export async function listStaff(req: Request, res: Response): Promise<void> {
   const { page = 1, limit = 20, search, status } = req.query as Record<string, string | undefined>;
   const filter: Record<string, unknown> = { role: "staff" };
+  if (req.user?.role === "team_leader") filter.teamLeaderId = req.user.userId;
   if (status) filter.staffStatus = status;
   if (search) {
     filter.$or = [
@@ -204,12 +205,11 @@ export async function listStaff(req: Request, res: Response): Promise<void> {
       { department: { $regex: search, $options: "i" } },
     ];
   }
-  const p = Number(page);
-  const l = Number(limit);
+  const { page: p, limit: l, skip } = parsePagination(page, limit);
   const [items, total] = await Promise.all([
     UserModel.find(filter)
       .sort({ createdAt: -1 })
-      .skip((p - 1) * l)
+      .skip(skip)
       .limit(l),
     UserModel.countDocuments(filter),
   ]);
@@ -297,6 +297,21 @@ export async function deleteStaff(req: Request, res: Response): Promise<void> {
 export async function listClients(req: Request, res: Response): Promise<void> {
   const { page = 1, limit = 20, search, status } = req.query as Record<string, string | undefined>;
   const filter: Record<string, unknown> = { role: "client" };
+  if (req.user?.role === "team_leader") {
+    const teamStaffIds = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId })
+      .distinct("businessId");
+    // Team leaders can manage clients already belonging to their team and
+    // unassigned clients, so they can take ownership when admin is absent.
+    filter.$and = [
+      {
+        $or: [
+          { assignedStaffId: { $in: teamStaffIds.length ? teamStaffIds : ["__none__"] } },
+          { assignedStaffId: { $exists: false } },
+          { assignedStaffId: null },
+        ],
+      },
+    ];
+  }
   if (status) filter.clientStatus = status;
   if (search) {
     filter.$or = [
@@ -306,12 +321,11 @@ export async function listClients(req: Request, res: Response): Promise<void> {
       { businessId: { $regex: search, $options: "i" } },
     ];
   }
-  const p = Number(page);
-  const l = Number(limit);
+  const { page: p, limit: l, skip } = parsePagination(page, limit);
   const [items, total] = await Promise.all([
     UserModel.find(filter)
       .sort({ createdAt: -1 })
-      .skip((p - 1) * l)
+      .skip(skip)
       .limit(l),
     UserModel.countDocuments(filter),
   ]);
@@ -338,6 +352,15 @@ export async function assignStaffToClient(req: Request, res: Response): Promise<
   if (!client) throw ApiError.notFound("Client not found");
   const staff = await UserModel.findOne({ businessId: staffId, role: "staff" });
   if (!staff) throw ApiError.notFound("Staff not found");
+  if (req.user?.role === "team_leader" && staff.teamLeaderId !== req.user.userId) {
+    throw ApiError.forbidden("You can only assign clients to staff in your own team");
+  }
+  if (
+    req.user?.role === "team_leader" &&
+    !["Approved", "Active"].includes(staff.staffStatus ?? "")
+  ) {
+    throw ApiError.badRequest("Selected staff member is not active");
+  }
   client.assignedStaffId = staff.businessId;
   await client.save();
 

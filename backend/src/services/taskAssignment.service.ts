@@ -102,7 +102,9 @@ export async function assignApplicationToAvailableStaff(params: {
         role: "staff",
         staffStatus: "Active",
         availabilityStatus: "Available",
-      }).session(session);
+      })
+        .session(session)
+        .lean();
 
       const activeCountsAgg = await ApplicationModel.aggregate([
         {
@@ -119,7 +121,7 @@ export async function assignApplicationToAvailableStaff(params: {
       );
       const selectedStaff = pickLeastActiveStaff(staff, activeCounts);
 
-      if (!selectedStaff) {
+      if (!selectedStaff || !selectedStaff.businessId) {
         current.status = "Waiting for Staff";
         current.updatedOn = new Date();
         await current.save({ session });
@@ -140,6 +142,21 @@ export async function assignApplicationToAvailableStaff(params: {
         { $set: { assignedStaffId: selectedStaff.businessId, assignedStaffName: selectedStaffName, status: "Assigned", updatedOn: new Date() } },
         { session },
       );
+
+      // Keep the client-management view in sync with automatic application
+      // assignment. Only fill an unassigned client; an explicit admin/client
+      // assignment must not be overwritten by a later auto-assignment.
+      if (assignmentType === "AUTO") {
+        await UserModel.updateOne(
+          {
+            businessId: current.applicantId,
+            role: "client",
+            $or: [{ assignedStaffId: { $exists: false } }, { assignedStaffId: null }],
+          },
+          { $set: { assignedStaffId: selectedStaff.businessId } },
+          { session },
+        );
+      }
 
       await Promise.all([
         TaskAssignmentLogModel.create(

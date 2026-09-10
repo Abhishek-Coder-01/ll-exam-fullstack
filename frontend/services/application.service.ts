@@ -56,8 +56,10 @@ export async function createApplication(payload: {
   type: string;
   fee?: number;
   remarks?: string;
-}): Promise<Application> {
-  const { data } = await api.post<RawApplication>("/applications", payload);
+}, idempotencyKey?: string): Promise<Application> {
+  const { data } = await api.post<RawApplication>("/applications", payload, {
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+  });
   return toApplication(data);
 }
 

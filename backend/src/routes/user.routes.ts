@@ -6,6 +6,11 @@ import {
   assignStaffToTeamLeaderSchema,
   updateStaffStatusSchema,
   updateProfileSchema,
+  createTeamLeaderSchema,
+  updateTeamLeaderSchema,
+  toggleTeamLeaderSchema,
+  removeStaffSchema,
+  assignClientSchema,
 } from "../validators";
 import * as ctrl from "../controllers/user.controller";
 
@@ -16,8 +21,8 @@ router.use(authenticate);
 // Self
 router.patch("/me", validate({ body: updateProfileSchema }), asyncHandler(ctrl.updateProfile));
 
-// Admin — staff management
-router.get("/staff", authorize("admin"), asyncHandler(ctrl.listStaff));
+// Admin / Team Leader — staff visibility is scoped inside the controller.
+router.get("/staff", authorize("admin", "team_leader"), asyncHandler(ctrl.listStaff));
 router.patch(
   "/staff/:businessId/status",
   authorize("admin"),
@@ -28,26 +33,47 @@ router.delete("/staff/:businessId", authorize("admin"), asyncHandler(ctrl.delete
 
 // Team Leader — staff management
 router.get("/team-leaders", authorize("admin"), asyncHandler(ctrl.listTeamLeaders));
-router.post("/team-leaders", authorize("admin"), asyncHandler(ctrl.createTeamLeader));
-router.patch("/team-leaders/:businessId", authorize("admin"), asyncHandler(ctrl.updateTeamLeader));
-router.patch("/team-leaders/:businessId/active", authorize("admin"), asyncHandler(ctrl.toggleTeamLeaderActive));
+router.post(
+  "/team-leaders",
+  authorize("admin"),
+  validate({ body: createTeamLeaderSchema }),
+  asyncHandler(ctrl.createTeamLeader),
+);
+router.patch(
+  "/team-leaders/:businessId",
+  authorize("admin"),
+  validate({ body: updateTeamLeaderSchema }),
+  asyncHandler(ctrl.updateTeamLeader),
+);
+router.patch(
+  "/team-leaders/:businessId/active",
+  authorize("admin"),
+  validate({ body: toggleTeamLeaderSchema }),
+  asyncHandler(ctrl.toggleTeamLeaderActive),
+);
 router.patch(
   "/team-leaders/:businessId/assign-staff",
   authorize("admin"),
   validate({ body: assignStaffToTeamLeaderSchema }),
   asyncHandler(ctrl.assignStaffToTeamLeader),
 );
-router.patch("/team-leaders/:businessId/remove-staff", authorize("admin"), asyncHandler(ctrl.removeStaffFromTeamLeader));
+router.patch(
+  "/team-leaders/:businessId/remove-staff",
+  authorize("admin"),
+  validate({ body: removeStaffSchema }),
+  asyncHandler(ctrl.removeStaffFromTeamLeader),
+);
 router.delete("/team-leaders/:businessId", authorize("admin"), asyncHandler(ctrl.deleteTeamLeader));
 
 // Team Leader — only the staff assigned to the authenticated leader
 router.get("/team-leader/staff", authorize("team_leader"), asyncHandler(ctrl.listTeamLeaderStaff));
 
-// Admin — client management
-router.get("/clients", authorize("admin"), asyncHandler(ctrl.listClients));
+// Admin / Team Leader — client visibility is scoped inside the controller.
+router.get("/clients", authorize("admin", "team_leader"), asyncHandler(ctrl.listClients));
 router.patch(
   "/clients/:businessId/assign",
-  authorize("admin"),
+  authorize("admin", "team_leader"),
+  validate({ body: assignClientSchema }),
   asyncHandler(ctrl.assignStaffToClient),
 );
 

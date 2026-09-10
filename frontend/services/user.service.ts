@@ -70,6 +70,7 @@ function toClient(u: RawUser): Client {
     status: (u.clientStatus as Client["status"]) ?? "Active",
     applications: u.applications ?? 0,
     assignedStaff: u.assignedStaff,
+    assignedStaffId: u.assignedStaffId,
     licenseType: u.licenseType ?? "Learner's License",
     createdAt: u.createdAt,
     avatarUrl: u.avatarUrl,

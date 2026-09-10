@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -83,22 +83,16 @@ const DOC_SPECS: Record<string, DocSpec[]> = {
   "Learner's License": [
     { type: "Identity Proof", label: "Identity Proof", description: "Aadhaar Card, PAN Card, Passport, or Voter ID", required: true },
     { type: "Address Proof", label: "Address Proof", description: "Aadhaar Card, Electricity Bill, or Ration Card", required: true },
-    { type: "Age Proof", label: "Age Proof", description: "Birth Certificate, School Certificate, or Passport", required: true },
     { type: "Photograph", label: "Passport Photograph", description: "Recent passport-sized photo (JPG/PNG)", required: true },
-    { type: "Medical", label: "Medical Certificate", description: "Form 1A self-declaration / doctor certificate", required: false },
   ],
   "Permanent License": [
     { type: "Learner's License", label: "Learner's License Copy", description: "Valid LL Number / Certificate copy", required: true },
     { type: "Identity Proof", label: "Identity Proof", description: "Aadhaar Card or PAN Card", required: true },
-    { type: "Address Proof", label: "Address Proof", description: "Current residential address proof", required: true },
     { type: "Photograph", label: "Passport Photograph", description: "Recent passport-sized photo", required: true },
-    { type: "Medical", label: "Medical Certificate", description: "Form 1A medical fitness certificate (optional)", required: false },
   ],
   "Commercial License": [
     { type: "Identity Proof", label: "Identity Proof", description: "Aadhaar Card or PAN Card", required: true },
     { type: "Address Proof", label: "Address Proof", description: "Permanent address proof", required: true },
-    { type: "Age Proof", label: "Age Proof", description: "Birth Certificate or School Certificate", required: true },
-    { type: "Photograph", label: "Passport Photograph", description: "Recent passport-sized photo", required: true },
     { type: "Medical", label: "Medical Certificate (Form 1A)", description: "Mandatory certified Doctor Medical Fitness report", required: true },
   ],
 };
@@ -108,6 +102,7 @@ export default function NewApplicationPage() {
   const [loading, setLoading] = useState(false);
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const submitInProgress = useRef(false);
 
   const {
     register,
@@ -123,9 +118,14 @@ export default function NewApplicationPage() {
   const licenseType = watch("licenseType");
   const docSpecs = DOC_SPECS[licenseType] ?? DOC_SPECS["Learner's License"];
 
-  const maxDobDateString = new Date(new Date().setFullYear(new Date().getFullYear() - 16))
-    .toISOString()
-    .split("T")[0];
+  // Allow the date picker to display the current year. The form validation
+  // below still prevents applicants younger than 16 from submitting.
+  const today = new Date();
+  const maxDobDateString = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, "0"),
+    String(today.getDate()).padStart(2, "0"),
+  ].join("-");
 
   const onFilePick = (file: File | null, type: string) => {
     if (!file) return;
@@ -137,14 +137,17 @@ export default function NewApplicationPage() {
   };
 
   const onSubmit = handleSubmit(async (values) => {
+    if (submitInProgress.current) return;
+    submitInProgress.current = true;
     setError(null);
     setLoading(true);
     try {
+      const idempotencyKey = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
       const app = await applicationService.createApplication({
         type: values.licenseType,
         fee: FEE_MAP[values.licenseType] ?? 500,
         remarks: `Applicant: ${values.fullName}; DOB: ${values.dob}; Address: ${values.address}; Vehicle class: ${values.vehicleClass}`,
-      });
+      }, idempotencyKey);
 
       // Upload attached files, if any
       for (const pf of files) {
@@ -163,9 +166,20 @@ export default function NewApplicationPage() {
       reset();
       setFiles([]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to submit application");
+      if (err instanceof ApiError) {
+        const details =
+          err.details && typeof err.details === "object"
+            ? Object.entries(err.details as Record<string, unknown>)
+                .map(([field, message]) => `${field}: ${String(message)}`)
+                .join("; ")
+            : "";
+        setError(details ? `${err.message} — ${details}` : err.message);
+      } else {
+        setError("Failed to submit application");
+      }
     } finally {
       setLoading(false);
+      submitInProgress.current = false;
     }
   });
 

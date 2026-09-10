@@ -51,6 +51,7 @@ export interface Client extends User {
   status: "Active" | "Inactive";
   applications: number;
   assignedStaff?: string;
+  assignedStaffId?: string;
   licenseType: string;
 }
 

@@ -3,6 +3,7 @@ import { APPLICATION_STATUSES, type ApplicationStatus } from "../types/domain";
 
 export interface IApplication extends Document {
   businessId: string; // APP-90012
+  idempotencyKey?: string;
   applicantName: string;
   applicantId: string; // -> Client.businessId
   type: string; // Learner's License, Permanent License, Commercial License
@@ -21,6 +22,7 @@ export interface IApplication extends Document {
 const applicationSchema = new Schema<IApplication>(
   {
     businessId: { type: String, required: true, unique: true, index: true },
+    idempotencyKey: { type: String, index: true, sparse: true },
     applicantName: { type: String, required: true },
     applicantId: { type: String, required: true, index: true },
     type: { type: String, required: true },
@@ -46,6 +48,11 @@ applicationSchema.pre("save", function updateTimestamp(next) {
   this.updatedOn = new Date();
   next();
 });
+
+applicationSchema.index({ applicantId: 1, createdAt: -1 });
+applicationSchema.index({ assignedStaffId: 1, status: 1, createdAt: -1 });
+applicationSchema.index({ status: 1, createdAt: -1 });
+applicationSchema.index({ applicantId: 1, idempotencyKey: 1 }, { unique: true, sparse: true });
 
 export const ApplicationModel: Model<IApplication> = model<IApplication>(
   "Application",

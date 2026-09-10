@@ -10,6 +10,10 @@ export async function connectDB(): Promise<void> {
     mongoose.set("strictQuery", true);
     await mongoose.connect(env.MONGO_URI, {
       autoIndex: env.NODE_ENV !== "production",
+      maxPoolSize: 100,
+      minPoolSize: env.NODE_ENV === "production" ? 5 : 0,
+      serverSelectionTimeoutMS: 5_000,
+      socketTimeoutMS: 45_000,
     });
     logger.info(`✅ MongoDB connected: ${mongoose.connection.host}/${mongoose.connection.name}`);
 

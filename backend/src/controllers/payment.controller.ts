@@ -9,6 +9,7 @@ import { getPaymentProvider } from "../services/payment.service";
 import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
 import type { PaymentStatus } from "../types/domain";
+import { parsePagination } from "../utils/pagination";
 
 /**
  * NOTE — payment "introduction" only for now (as requested).
@@ -82,6 +83,13 @@ export async function verifyPayment(req: Request, res: Response): Promise<void> 
     throw ApiError.forbidden();
   }
 
+  // Verification callbacks/retries must be idempotent. Do not create a
+  // second success event or send duplicate notifications for the same payment.
+  if (payment.status === "Completed" && payment.providerPaymentId === paymentId) {
+    ok(res, payment.toObject(), "Payment already verified");
+    return;
+  }
+
   const provider = getPaymentProvider();
   const isValid = await provider.verifyPayment({ orderId, paymentId, signature });
   if (!isValid) {
@@ -135,10 +143,9 @@ export async function listPayments(req: Request, res: Response): Promise<void> {
       { applicationId: { $regex: search, $options: "i" } },
     ];
   }
-  const p = Number(page);
-  const l = Number(limit);
+  const { page: p, limit: l, skip } = parsePagination(page, limit);
   const [items, total] = await Promise.all([
-    PaymentModel.find(filter).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l),
+    PaymentModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     PaymentModel.countDocuments(filter),
   ]);
   ok(res, items, "Payments", 200, { total, page: p, limit: l });

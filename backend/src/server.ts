@@ -16,6 +16,9 @@ async function main(): Promise<void> {
     logger.info(`🔐 OTP mode   → ${env.OTP_MOCK_MODE ? "MOCK (codes logged to console)" : "TWILIO"}`);
     logger.info(`💳 Payments   → ${env.PAYMENT_PROVIDER}`);
   });
+  server.requestTimeout = 120_000;
+  server.headersTimeout = 125_000;
+  server.keepAliveTimeout = 65_000;
 
   const shutdown = async (signal: string): Promise<void> => {
     logger.info(`Received ${signal}, shutting down gracefully...`);

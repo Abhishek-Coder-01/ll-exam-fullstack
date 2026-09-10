@@ -16,12 +16,22 @@ import {
 import { applicationService, ApiError } from "@/services";
 import type { Application, ApplicationStatus } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function AdminApplicationsPage() {
   const [apps, setApps] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [rejectingApplicationId, setRejectingApplicationId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -51,10 +61,23 @@ export default function AdminApplicationsPage() {
     }
   };
 
-  const rejectApplication = async (id: string) => {
-    const reason = window.prompt("Enter the reason for rejecting this application:");
-    if (!reason?.trim()) return;
-    await setStatus(id, "Rejected", reason.trim());
+  const openRejectDialog = (id: string) => {
+    setRejectingApplicationId(id);
+    setRejectionReason("");
+  };
+
+  const closeRejectDialog = () => {
+    if (busy === rejectingApplicationId) return;
+    setRejectingApplicationId(null);
+    setRejectionReason("");
+  };
+
+  const rejectApplication = async () => {
+    const reason = rejectionReason.trim();
+    if (!rejectingApplicationId || !reason) return;
+    await setStatus(rejectingApplicationId, "Rejected", reason);
+    setRejectingApplicationId(null);
+    setRejectionReason("");
   };
 
   const assign = async (id: string) => {
@@ -124,7 +147,7 @@ export default function AdminApplicationsPage() {
                 variant="outline"
                 className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10"
                 title="Reject"
-                onClick={() => rejectApplication(a.id)}
+                onClick={() => openRejectDialog(a.id)}
                 disabled={busy === a.id}
               >
                 <X className="h-3.5 w-3.5" />
@@ -181,6 +204,50 @@ export default function AdminApplicationsPage() {
           )}
         </CardContent>
       </Card>
+      <Dialog
+        open={Boolean(rejectingApplicationId)}
+        onOpenChange={(open) => {
+          if (!open) closeRejectDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject application</DialogTitle>
+            <DialogDescription>
+              Enter the reason for rejecting this application. The client will be able to see it.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="application-rejection-reason" className="text-sm font-medium">
+              Rejection reason
+            </label>
+            <textarea
+              id="application-rejection-reason"
+              value={rejectionReason}
+              onChange={(event) => setRejectionReason(event.target.value)}
+              placeholder="Example: Required documents are incomplete..."
+              rows={4}
+              maxLength={500}
+              autoFocus
+              className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="text-right text-xs text-muted-foreground">{rejectionReason.length}/500</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRejectDialog} disabled={busy === rejectingApplicationId}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void rejectApplication()}
+              disabled={!rejectionReason.trim() || busy === rejectingApplicationId}
+            >
+              {busy === rejectingApplicationId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Reject application
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {!loading && apps.length === 0 && (
         <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
           <FileText className="h-4 w-4" /> Nothing to review right now.

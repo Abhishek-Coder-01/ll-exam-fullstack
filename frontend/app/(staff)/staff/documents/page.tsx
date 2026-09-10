@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { FileText, Check, X, Download, Loader2 } from "lucide-react";
+import { FileText, Check, X, Download, Loader2, ChevronDown, ChevronRight, UserRound } from "lucide-react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,18 +10,36 @@ import { DataTable, type Column } from "@/components/tables/data-table";
 import { documentService, ApiError } from "@/services";
 import type { DocumentItem, DocumentStatus } from "@/types";
 import { formatDate } from "@/lib/utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type DocRow = DocumentItem & { applicationId: string };
+
+type ApplicationDocumentGroup = {
+  applicationId: string;
+  applicantName?: string;
+  applicationType?: string;
+  documents: DocRow[];
+};
 
 export default function StaffDocumentsPage() {
   const [docs, setDocs] = useState<DocRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [expandedApplication, setExpandedApplication] = useState<string | null>(null);
+  const [rejectingDocumentId, setRejectingDocumentId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const load = useCallback(async () => {
     try {
-      const items = await documentService.listDocuments();
+      const items = await documentService.listDocuments({ limit: "100" });
       setDocs(items as DocRow[]);
       setError(null);
     } catch (err) {
@@ -47,10 +65,23 @@ export default function StaffDocumentsPage() {
     }
   };
 
-  const rejectDocument = async (id: string) => {
-    const reason = window.prompt("Enter the reason for rejecting this document:");
-    if (!reason?.trim()) return;
-    await setStatus(id, "Rejected", reason.trim());
+  const openRejectDialog = (id: string) => {
+    setRejectingDocumentId(id);
+    setRejectionReason("");
+  };
+
+  const closeRejectDialog = () => {
+    if (busy === rejectingDocumentId) return;
+    setRejectingDocumentId(null);
+    setRejectionReason("");
+  };
+
+  const rejectDocument = async () => {
+    const reason = rejectionReason.trim();
+    if (!rejectingDocumentId || !reason) return;
+    await setStatus(rejectingDocumentId, "Rejected", reason);
+    setRejectingDocumentId(null);
+    setRejectionReason("");
   };
 
   const download = async (id: string, name: string) => {
@@ -104,7 +135,7 @@ export default function StaffDocumentsPage() {
             variant="outline"
             className="h-8 w-8 border-destructive/30 text-destructive hover:bg-destructive/10"
             title="Reject"
-            onClick={() => rejectDocument(d.id)}
+            onClick={() => openRejectDialog(d.id)}
             disabled={busy === d.id}
           >
             <X className="h-3.5 w-3.5" />
@@ -113,6 +144,21 @@ export default function StaffDocumentsPage() {
       ),
     },
   ];
+
+  const groups = docs.reduce<ApplicationDocumentGroup[]>((result, document) => {
+    let group = result.find((item) => item.applicationId === document.applicationId);
+    if (!group) {
+      group = {
+        applicationId: document.applicationId,
+        applicantName: (document as DocRow & { applicantName?: string }).applicantName,
+        applicationType: (document as DocRow & { applicationType?: string }).applicationType,
+        documents: [],
+      };
+      result.push(group);
+    }
+    group.documents.push(document);
+    return result;
+  }, []);
 
   return (
     <div>
@@ -126,17 +172,112 @@ export default function StaffDocumentsPage() {
           ) : error ? (
             <p className="py-6 text-center text-sm text-destructive">{error}</p>
           ) : (
-            <DataTable
-              columns={columns}
-              data={docs}
-              searchKeys={["name", "type"]}
-              searchPlaceholder="Search documents..."
-              emptyTitle="No documents uploaded yet"
-              emptyDescription="Uploaded documents from your assigned clients will appear here."
-            />
+            groups.length === 0 ? (
+              <DataTable
+                columns={columns}
+                data={docs}
+                searchKeys={["name", "type"]}
+                searchPlaceholder="Search documents..."
+                emptyTitle="No documents uploaded yet"
+                emptyDescription="Uploaded documents from your assigned clients will appear here."
+              />
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {groups.length} application(s) · {docs.length} document(s)
+                </p>
+                {groups.map((group) => {
+                  const isExpanded = expandedApplication === group.applicationId;
+                  const pendingCount = group.documents.filter((doc) => doc.status !== "Verified").length;
+                  return (
+                    <div key={group.applicationId} className="overflow-hidden rounded-lg border border-border">
+                      <button
+                        type="button"
+                        className="flex w-full items-center justify-between gap-4 bg-muted/20 px-4 py-3 text-left hover:bg-muted/40"
+                        onClick={() => setExpandedApplication(isExpanded ? null : group.applicationId)}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {isExpanded ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+                          <div className="rounded-md bg-primary/10 p-2 text-primary">
+                            <UserRound className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold">{group.applicationId}</p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {group.applicantName ?? "Client"}{group.applicationType ? ` · ${group.applicationType}` : ""}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-3 text-xs text-muted-foreground">
+                          <span>{group.documents.length} document(s)</span>
+                          {pendingCount > 0 && <span className="text-amber-600">{pendingCount} pending</span>}
+                        </div>
+                      </button>
+                      {isExpanded && (
+                        <div className="border-t border-border p-2">
+                          <DataTable
+                            columns={columns}
+                            data={group.documents}
+                            searchKeys={["name", "type"]}
+                            searchPlaceholder="Search this application's documents..."
+                            emptyTitle="No documents"
+                            emptyDescription="No documents found for this application."
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(rejectingDocumentId)}
+        onOpenChange={(open) => {
+          if (!open) closeRejectDialog();
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject document</DialogTitle>
+            <DialogDescription>
+              Please enter a reason. This message will be visible to the client.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label htmlFor="rejection-reason" className="text-sm font-medium">
+              Rejection reason
+            </label>
+            <textarea
+              id="rejection-reason"
+              value={rejectionReason}
+              onChange={(event) => setRejectionReason(event.target.value)}
+              placeholder="Example: The uploaded document is not clear..."
+              rows={4}
+              maxLength={500}
+              autoFocus
+              className="flex w-full resize-none rounded-md border border-input bg-background px-3 py-2 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="text-right text-xs text-muted-foreground">{rejectionReason.length}/500</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRejectDialog} disabled={busy === rejectingDocumentId}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => void rejectDocument()}
+              disabled={!rejectionReason.trim() || busy === rejectingDocumentId}
+            >
+              {busy === rejectingDocumentId ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Reject document
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { recordActivity } from "../services/activity.service";
 import { pushNotification } from "../services/notification.service";
 import type { ApplicationStatus } from "../types/domain";
 import { assignApplicationToAvailableStaff } from "../services/taskAssignment.service";
+import { parsePagination } from "../utils/pagination";
 
 const DEFAULT_FEES: Record<string, number> = {
   "Learner's License": 350,
@@ -23,10 +24,25 @@ export async function createApplication(req: Request, res: Response): Promise<vo
   if (!client) throw ApiError.forbidden("Only clients can create applications");
 
   const { type, remarks } = req.body as { type: string; fee?: number; remarks?: string };
+  const idempotencyKey = req.get("Idempotency-Key")?.trim();
+  if (idempotencyKey && (idempotencyKey.length < 16 || idempotencyKey.length > 128)) {
+    throw ApiError.badRequest("Invalid Idempotency-Key");
+  }
+  if (idempotencyKey) {
+    const existing = await ApplicationModel.findOne({
+      applicantId: client.businessId,
+      idempotencyKey,
+    });
+    if (existing) {
+      ok(res, existing.toObject(), "Application already created");
+      return;
+    }
+  }
   const fee = (req.body as { fee?: number }).fee ?? DEFAULT_FEES[type] ?? 500;
 
   const app = await ApplicationModel.create({
     businessId: generateApplicationId(),
+    idempotencyKey,
     applicantName: client.name,
     applicantId: client.businessId,
     type,
@@ -54,6 +70,7 @@ export async function createApplication(req: Request, res: Response): Promise<vo
     app.assignedStaffId = assignment.application.assignedStaffId;
     app.assignedStaffName = assignment.application.assignedStaffName;
     app.updatedOn = new Date();
+    await app.save();
   }
 
   // Auto-create a Pending payment row
@@ -125,10 +142,9 @@ export async function listApplications(req: Request, res: Response): Promise<voi
     ];
   }
 
-  const p = Number(page);
-  const l = Number(limit);
+  const { page: p, limit: l, skip } = parsePagination(page, limit);
   const [items, total] = await Promise.all([
-    ApplicationModel.find(filter).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l),
+    ApplicationModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     ApplicationModel.countDocuments(filter),
   ]);
 
@@ -181,6 +197,9 @@ export async function updateApplication(req: Request, res: Response): Promise<vo
     }
     if (patch.type) app.type = patch.type;
   } else {
+    if (req.user.role === "staff" && app.assignedStaffId !== req.user.userId) {
+      throw ApiError.forbidden("This application is not assigned to you");
+    }
     if (req.user.role === "team_leader") {
       const teamMemberIds = await UserModel.find({ role: "staff", teamLeaderId: req.user.userId }).distinct("businessId");
       if (patch.assignedStaffId && !teamMemberIds.includes(patch.assignedStaffId)) {

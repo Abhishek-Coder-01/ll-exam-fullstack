@@ -115,6 +115,41 @@ export const env: EnvConfig = {
 // Validate required in production
 if (env.NODE_ENV === "production") {
   const missing = requiredKeys.filter((k) => !process.env[k as string]);
+  const weakSecrets = ["JWT_ACCESS_SECRET", "JWT_REFRESH_SECRET"].filter(
+    (key) => (process.env[key] ?? "").length < 32,
+  );
+  if (env.OTP_MOCK_MODE) {
+    console.error("❌ OTP_MOCK_MODE must be false in production");
+    process.exit(1);
+  }
+  if (env.PAYMENT_PROVIDER === "stub") {
+    console.error("❌ PAYMENT_PROVIDER=stub is not allowed in production");
+    process.exit(1);
+  }
+  if (env.PAYMENT_PROVIDER === "razorpay" && (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET)) {
+    console.error("❌ Razorpay credentials are required when PAYMENT_PROVIDER=razorpay");
+    process.exit(1);
+  }
+  if (!env.TWILIO_ACCOUNT_SID || !env.TWILIO_AUTH_TOKEN || !env.TWILIO_FROM_NUMBER) {
+    console.error("❌ Twilio credentials are required when OTP_MOCK_MODE=false");
+    process.exit(1);
+  }
+  const productionOrigins = env.CLIENT_URL.split(",").map((origin) => origin.trim());
+  if (
+    productionOrigins.length === 0 ||
+    productionOrigins.some((origin) => origin.includes("localhost") || origin.includes("*") || !origin.startsWith("https://"))
+  ) {
+    console.error("❌ CLIENT_URL must contain only real HTTPS frontend origin(s) in production");
+    process.exit(1);
+  }
+  if (weakSecrets.length > 0) {
+    console.error(`❌ Production JWT secrets must be at least 32 characters: ${weakSecrets.join(", ")}`);
+    process.exit(1);
+  }
+  if ((process.env.BOOTSTRAP_ADMIN_PASSWORD ?? "").length < 12 || env.BOOTSTRAP_ADMIN_PASSWORD === "Admin@12345") {
+    console.error("❌ Set a strong, non-default BOOTSTRAP_ADMIN_PASSWORD in production");
+    process.exit(1);
+  }
   if (missing.length > 0) {
     // eslint-disable-next-line no-console
     console.error(`❌ Missing required env variables in production: ${missing.join(", ")}`);

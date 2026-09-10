@@ -60,6 +60,7 @@ export const CLIENT_NAV: NavItem[] = [
 export const TEAM_LEADER_NAV: NavItem[] = [
   { label: "Dashboard", href: "/team-leader/dashboard", icon: LayoutDashboard },
   { label: "Team Staff", href: "/team-leader/staff", icon: Users },
+  { label: "Client Management", href: "/team-leader/clients", icon: Users },
   { label: "Applications", href: "/team-leader/applications", icon: FileText },
   { label: "Notifications", href: "/team-leader/notifications", icon: Bell },
   { label: "Profile", href: "/team-leader/profile", icon: User },

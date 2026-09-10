@@ -2,16 +2,16 @@ import type { Request, Response } from "express";
 import { NotificationModel } from "../models/Notification.model";
 import { ApiError } from "../utils/ApiError";
 import { ok } from "../utils/ApiResponse";
+import { parsePagination } from "../utils/pagination";
 
 export async function listNotifications(req: Request, res: Response): Promise<void> {
   if (!req.user) throw ApiError.unauthorized();
   const { page = 1, limit = 20, unreadOnly } = req.query as Record<string, string | undefined>;
   const filter: Record<string, unknown> = { recipientId: req.user.userId };
   if (unreadOnly === "true") filter.read = false;
-  const p = Number(page);
-  const l = Number(limit);
+  const { page: p, limit: l, skip } = parsePagination(page, limit);
   const [items, total, unreadCount] = await Promise.all([
-    NotificationModel.find(filter).sort({ createdAt: -1 }).skip((p - 1) * l).limit(l),
+    NotificationModel.find(filter).sort({ createdAt: -1 }).skip(skip).limit(l),
     NotificationModel.countDocuments(filter),
     NotificationModel.countDocuments({ recipientId: req.user.userId, read: false }),
   ]);

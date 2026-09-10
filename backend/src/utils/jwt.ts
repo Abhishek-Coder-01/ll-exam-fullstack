@@ -19,13 +19,13 @@ export function signRefreshToken(payload: TokenPayload): string {
 }
 
 export function verifyAccessToken(token: string): TokenPayload {
-  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET as Secret);
+  const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET as Secret, { algorithms: ["HS256"] });
   if (typeof decoded === "string") throw new Error("Invalid token payload");
   return decoded as TokenPayload;
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET as Secret);
+  const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET as Secret, { algorithms: ["HS256"] });
   if (typeof decoded === "string") throw new Error("Invalid token payload");
   return decoded as TokenPayload;
 }

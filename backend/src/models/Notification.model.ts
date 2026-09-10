@@ -31,6 +31,9 @@ const notificationSchema = new Schema<INotification>(
   { timestamps: true },
 );
 
+notificationSchema.index({ recipientId: 1, createdAt: -1 });
+notificationSchema.index({ recipientId: 1, read: 1, createdAt: -1 });
+
 export const NotificationModel: Model<INotification> = model<INotification>(
   "Notification",
   notificationSchema,

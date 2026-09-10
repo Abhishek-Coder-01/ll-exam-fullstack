@@ -50,34 +50,16 @@ const typeLabelByType: Record<Notification["type"], string> = {
   error: "Error",
 };
 
-const accentBorderByType: Record<Notification["type"], string> = {
-  info: "border-l-primary-400",
-  success: "border-l-success",
-  warning: "border-l-warning",
-  error: "border-l-destructive",
-};
-
-// ─── Filter tabs ─────────────────────────────────────────────────────────────
-
 type FilterTab = "all" | "unread" | "read";
-
-// ─── Props ───────────────────────────────────────────────────────────────────
 
 interface NotificationListProps {
   notifications: Notification[];
-  /** Called with a single id when user clicks the per-item delete button. */
   onDeleteOne?: (id: string) => void;
-  /** Called with an array of selected ids when user clicks "Delete selected". */
   onDeleteMany?: (ids: string[]) => void;
-  /** Called when user confirms "Clear All". */
   onClearAll?: () => void;
-  /** Called with a single id to toggle read state (locally or via API). */
   onToggleRead?: (id: string, read: boolean) => void;
-  /** Called to mark all items as read. */
   onMarkAllRead?: () => void;
 }
-
-// ─── Component ───────────────────────────────────────────────────────────────
 
 export function NotificationList({
   notifications,
@@ -90,8 +72,6 @@ export function NotificationList({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [confirmClearAll, setConfirmClearAll] = useState(false);
-
-  // ─── Derived values ────────────────────────────────────────────────────────
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -108,8 +88,6 @@ export function NotificationList({
     filteredItems.some((n) => selectedIds.includes(n.id)) && !allFilteredSelected;
 
   const selectedCount = selectedIds.filter((id) => filteredItems.some((n) => n.id === id)).length;
-
-  // ─── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSelectAll = () => {
     if (allFilteredSelected) {
@@ -146,8 +124,6 @@ export function NotificationList({
     setConfirmClearAll(false);
   };
 
-  // ─── Empty state ───────────────────────────────────────────────────────────
-
   if (notifications.length === 0) {
     return (
       <EmptyState
@@ -158,13 +134,11 @@ export function NotificationList({
     );
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
 
-      {/* ── Filter Tabs ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 border-b border-border pb-3">
+      {/* Filter Tabs */}
+      <div className="flex w-fit items-center gap-1 rounded-lg border border-border bg-muted/30 p-1">
         {(
           [
             { key: "all", label: "All", count: notifications.length },
@@ -180,9 +154,9 @@ export function NotificationList({
               setConfirmClearAll(false);
             }}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               activeTab === tab.key
-                ? "bg-primary text-primary-foreground shadow-sm"
+                ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted"
             )}
           >
@@ -201,10 +175,8 @@ export function NotificationList({
         ))}
       </div>
 
-      {/* ── Control Bar ─────────────────────────────────────────────────── */}
+      {/* Control Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
-
-        {/* Left: Select All checkbox */}
         <div className="flex items-center gap-2.5">
           <button
             onClick={handleSelectAll}
@@ -235,7 +207,6 @@ export function NotificationList({
           </span>
         </div>
 
-        {/* Right: Action buttons */}
         <div className="flex items-center gap-2">
           {selectedCount > 0 ? (
             <>
@@ -263,8 +234,7 @@ export function NotificationList({
               )}
             </>
           ) : confirmClearAll ? (
-            /* ── Inline "Are you sure?" confirmation ── */
-            <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-1.5">
+            <div className="flex items-center gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-1.5">
               <AlertTriangle className="h-3.5 w-3.5 text-destructive shrink-0" />
               <span className="text-xs text-destructive font-medium">Clear all notifications?</span>
               <div className="flex items-center gap-1.5 ml-1">
@@ -293,7 +263,7 @@ export function NotificationList({
                   variant="ghost"
                   size="sm"
                   onClick={onMarkAllRead}
-                  className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-1.5 transition-colors"
+                  className="h-8 px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted flex items-center gap-1.5"
                 >
                   <EyeOff className="h-3.5 w-3.5" />
                   Mark All Read
@@ -304,7 +274,7 @@ export function NotificationList({
                   variant="ghost"
                   size="sm"
                   onClick={() => setConfirmClearAll(true)}
-                  className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 flex items-center gap-1.5 transition-colors"
+                  className="h-8 px-3 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/5 flex items-center gap-1.5"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   Clear All
@@ -315,11 +285,11 @@ export function NotificationList({
         </div>
       </div>
 
-      {/* ── Notification Items (or filtered empty state) ─────────────────── */}
+      {/* Notification Items */}
       {filteredItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-secondary/30 px-6 py-12 text-center">
-          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary-50">
-            <Bell className="h-5 w-5 text-primary-600" />
+        <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-border bg-secondary/20 px-6 py-12 text-center">
+          <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted">
+            <Bell className="h-5 w-5 text-muted-foreground" />
           </div>
           <p className="text-sm font-medium text-foreground">
             No {activeTab !== "all" ? activeTab : ""} notifications
@@ -333,7 +303,7 @@ export function NotificationList({
           </p>
         </div>
       ) : (
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {filteredItems.map((n) => {
             const Icon = iconByType[n.type];
             const isSelected = selectedIds.includes(n.id);
@@ -341,15 +311,12 @@ export function NotificationList({
               <Card
                 key={n.id}
                 className={cn(
-                  "group relative overflow-hidden border-l-4 transition-all duration-200",
-                  "hover:shadow-md hover:-translate-y-px",
-                  n.read ? "border-l-transparent" : accentBorderByType[n.type],
-                  isSelected && "ring-2 ring-primary/30 ring-offset-1"
+                  "group relative overflow-hidden rounded-lg border transition-colors",
+                  n.read ? "bg-card" : "bg-muted/40",
+                  isSelected && "ring-2 ring-primary/30"
                 )}
               >
                 <CardContent className="flex items-start gap-3 p-4">
-
-                  {/* Checkbox */}
                   <div className="pt-0.5 flex-shrink-0">
                     <button
                       onClick={() => handleSelectOne(n.id)}
@@ -365,7 +332,6 @@ export function NotificationList({
                     </button>
                   </div>
 
-                  {/* Icon */}
                   <div
                     className={cn(
                       "flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
@@ -375,9 +341,7 @@ export function NotificationList({
                     <Icon className="h-4 w-4" />
                   </div>
 
-                  {/* Content */}
                   <div className="min-w-0 flex-1 pr-16">
-                    {/* Title row */}
                     <div className="flex flex-wrap items-center gap-2 mb-0.5">
                       <p
                         className={cn(
@@ -389,11 +353,9 @@ export function NotificationList({
                       >
                         {n.title}
                       </p>
-                      {/* Unread dot */}
                       {!n.read && (
                         <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />
                       )}
-                      {/* Type pill */}
                       <span
                         className={cn(
                           "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
@@ -403,15 +365,12 @@ export function NotificationList({
                         {typeLabelByType[n.type]}
                       </span>
                     </div>
-                    {/* Description */}
                     <p className="text-sm text-muted-foreground line-clamp-2 sm:line-clamp-none">
                       {n.description}
                     </p>
-                    {/* Timestamp */}
                     <p className="mt-1.5 text-xs text-muted-foreground/60">{n.time}</p>
                   </div>
 
-                  {/* Per-item actions: visible on touch, fade-in on hover for desktop */}
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-gradient-to-l from-card via-card/95 to-transparent pl-4 py-1">
                     {onToggleRead && (
                       <Button
@@ -440,14 +399,12 @@ export function NotificationList({
                       </Button>
                     )}
                   </div>
-
                 </CardContent>
               </Card>
             );
           })}
         </div>
       )}
-
     </div>
   );
 }

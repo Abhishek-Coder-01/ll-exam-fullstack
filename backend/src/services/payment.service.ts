@@ -7,7 +7,9 @@
  * As you asked — payment integration ka "introduction" abhi, real gateway (Razorpay) baad me.
  */
 import { randomBytes } from "crypto";
+import { createHmac, timingSafeEqual } from "crypto";
 import { env } from "../config/env";
+import { ApiError } from "../utils/ApiError";
 
 export interface CreateOrderInput {
   amount: number;
@@ -57,20 +59,45 @@ const stubProvider: PaymentProvider = {
 ------------------------------------------------------------------ */
 const razorpayProvider: PaymentProvider = {
   async createOrder(input) {
-    // TODO: swap with the real Razorpay SDK once RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET are set.
-    // const rz = new Razorpay({ key_id: env.RAZORPAY_KEY_ID, key_secret: env.RAZORPAY_KEY_SECRET });
-    // const order = await rz.orders.create({ amount: input.amount * 100, currency: input.currency, receipt: input.invoiceNo });
+    if (!env.RAZORPAY_KEY_ID || !env.RAZORPAY_KEY_SECRET) {
+      throw ApiError.internal("Razorpay is not configured");
+    }
+    const response = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${Buffer.from(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`).toString("base64")}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: Math.round(input.amount * 100),
+        currency: input.currency,
+        receipt: input.invoiceNo,
+        notes: { applicationId: input.applicationId, clientId: input.clientId },
+      }),
+    });
+    if (!response.ok) {
+      throw ApiError.internal("Unable to create payment order");
+    }
+    const order = (await response.json()) as { id?: string; amount?: number; currency?: string };
+    if (!order.id || typeof order.amount !== "number" || !order.currency) {
+      throw ApiError.internal("Invalid payment provider response");
+    }
     return {
       provider: "razorpay",
-      orderId: `rzp_placeholder_${randomBytes(6).toString("hex")}`,
-      amount: input.amount,
-      currency: input.currency,
+      orderId: order.id,
+      amount: order.amount / 100,
+      currency: order.currency,
       keyId: env.RAZORPAY_KEY_ID,
     };
   },
-  async verifyPayment() {
-    // TODO: verify HMAC SHA256 signature using RAZORPAY_KEY_SECRET.
-    return false;
+  async verifyPayment({ orderId, paymentId, signature }) {
+    if (!env.RAZORPAY_KEY_SECRET) return false;
+    const expected = createHmac("sha256", env.RAZORPAY_KEY_SECRET)
+      .update(`${orderId}|${paymentId}`)
+      .digest("hex");
+    const expectedBuffer = Buffer.from(expected, "utf8");
+    const actualBuffer = Buffer.from(signature, "utf8");
+    return expectedBuffer.length === actualBuffer.length && timingSafeEqual(expectedBuffer, actualBuffer);
   },
 };
 
